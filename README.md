@@ -40,7 +40,7 @@ Le dépôt est organisé sous forme de Monorepo pour faciliter la gestion du cod
     │ ├── src/     # Composants et pages de l'application
 │   └── package.json
 └── database/      # Scripts de configuration PostgreSQL
-    └── init.sql   # Schéma des tables (Forage, Utilisateur, etc.)
+    └── init.sql   # Schéma des tables (Forage, Utilisateur, etc.)```
 
 ## Installation et Démarrage
 Prérequis
