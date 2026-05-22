@@ -32,7 +32,8 @@ L'architecture de l'application est découpée de manière stricte pour assurer 
 ## Structure du Projet
 Le dépôt est organisé sous forme de Monorepo pour faciliter la gestion du code :
 
-```text foratrack/
+```text
+foratrack/
 ├── backend/       # Code source de l'API Python (FastAPI)
 │   ├── app/       # Logique métier, modèles et routes
 │   └── requirements.txt
@@ -40,7 +41,7 @@ Le dépôt est organisé sous forme de Monorepo pour faciliter la gestion du cod
     │ ├── src/     # Composants et pages de l'application
 │   └── package.json
 └── database/      # Scripts de configuration PostgreSQL
-    └── init.sql   # Schéma des tables (Forage, Utilisateur, etc.)```
+    └── init.sql   # Schéma des tables (Forage, Utilisateur, etc.)
 
 ## Installation et Démarrage
 Prérequis
