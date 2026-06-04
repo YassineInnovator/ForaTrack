@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 from uuid import UUID
 from datetime import datetime
 from typing import Optional, List
@@ -12,7 +12,34 @@ class UtilisateurBase(BaseModel):
   
 class UtilisateurCreate(UtilisateurBase):
   mot_de_passe: str   #Reçu en clair, il sera haché dans le backend avant d'aller en DB
+  @field_validator('mot_de_passe')
+  @classmethod
+  def validator_mot_de_passe(cls, v: str):
+    if len(v) < 8 :
+      raise ValueError("Le mot de passe doit contenir au moins 8 caractères !")
+    if not any(char.isalpha() for char in v):
+      raise ValueError("Le mot de passe doit contenir au moins 1 lettre !")
+    if not any(char.isdigit() for char in v):
+      raise ValueError("Le mot de passe doit contenir au moins un chiffre !")
+    
+    caracteres_speciaux = "@/?&#§!-$_"
+    if not any (char in caracteres_speciaux for char in v):
+      raise ValueError("Le mot de passe doit contenir au moins un caractère spécial parmi : {caracteres_speciaux} !")
+    return v
   
+class UtilisateurUpdate(BaseModel):
+  nom: Optional[str] = None
+  prenom: Optional[str] = None
+  email: Optional[EmailStr] = None
+  role: Optional[RoleUtilisateur] = None
+  mot_de_passe: Optional[str] = None
+
+  @field_validator('mot_de_passe')
+  @classmethod
+  def valider_nouveau_mot_de_passe(cls, v: Optional[str]) -> Optional[str]:
+    if v is not None:
+      UtilisateurCreate.validator_mot_de_passe(v)
+    return v
 
 class UtilisateurResponse(UtilisateurBase):
   id: UUID
