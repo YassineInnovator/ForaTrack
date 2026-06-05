@@ -28,6 +28,33 @@ def create_utilisateur(db: Session, utilisateur: schemas.UtilisateurCreate):
   db.refresh(db_utilisateur)
   return db_utilisateur
 
+def update_utilisateur(db: Session, utilisateur_id: int, utilisateur_update: schemas.UtilisateurUpdate):
+   db_utilisateur = db.query(models.Utilisateur).filter(models.Utilisateur.id == utilisateur_id).first()
+   if not db_utilisateur:
+      return None
+   
+   update_data = utilisateur_update.model_dump(exclude_unset=True)
+   
+   if "mot_de_passe" in update_data:
+      mot_de_passe_clair = update_data.pop("mot_de_passe")
+      db_utilisateur.mot_de_passe_h = pwd_context.hash(mot_de_passe_clair)
+
+   for key, value in update_data.items():
+      setattr(db_utilisateur, key, value)
+
+   db.commit()
+   db.refresh()
+   return db_utilisateur()
+
+def delete_utilisateur(db: Session, utilisateur_id: int) -> bool:
+   db_utilisateur = db.query(models.Utilisateur).filter(models.Utilisateur.id == utilisateur_id).first()
+   if not db_utilisateur:
+      return False
+   
+   db.delete(db_utilisateur)
+   db.commit()
+   return True
+
 ### CHANTIER ###
 
 def get_chantier(db: Session, chantier_id: UUID):
