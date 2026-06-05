@@ -56,7 +56,20 @@ def inscrire_utilisateur(utilisateur: schemas.UtilisateurCreate, db: Session = D
     )
   return crud.create_utilisateur(db=db, utilisateur=utilisateur)
 
+@app.patch("/utilisateurs/{utilisateur_id}", response_model=schemas.UtilisateurBase, tags=["Utilisateur"])
+def modifier_utilisateur(utilisateur_id: int, utilisateur_update: schemas.UtilisateurUpdate, db: Session = Depends(get_db)):
+   db_utilisateur = crud.update_utilisateur(db, utilisateur_id=utilisateur_id, utilisateur_update=utilisateur_update)
+   if db_utilisateur is None:
+      raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+   return db_utilisateur
 
+@app.delete("/utilisateurs/{utilisateur_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Utilisateur"])
+def supprimer_utilisateur(utilisateur_id: int, db: Session = Depends(get_db)):
+   deleted_user = crud.delete_utilisateur(db, utilisateur_id=utilisateur_id)
+   if not deleted_user:
+      raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+   return None 
+   
 ### routes : Chantiers
 
 @app.post("/chantiers/", response_model=schemas.ChantierResponse, status_code=status.HTTP_201_CREATED, tags=["Chantiers"])
@@ -88,7 +101,6 @@ def obtenir_details_forage_complet(forage_id: UUID, db: Session = Depends(get_db
     # Grâce aux relationships de SQLAlchemy et à Pydantic, 
     # cela va inclure automatiquement les listes d'oxydations, diagraphies et médias !
     return db_forage
-  
   
 # Route de base pour vérifier que le serveur tourne
 @app.get("/", tags=["Racine"])
