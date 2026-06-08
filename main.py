@@ -1,6 +1,7 @@
 from typing import List
 from uuid import UUID
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.openapi.utils import get_openapi
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import auth
@@ -12,8 +13,26 @@ from database import SessionLocal
 app = FastAPI(
   title="API ForaTrack",
   description="Système de gestion et de suivi des données géologiques de forages",
-  version="1.0.0"
+  version="1.0.2"
 )
+
+def custom_openapi():
+  return get_openapi(
+    title=app.title,
+    version=app.version,
+    description=app.description,
+    routes=app.routes,
+  )
+
+app.openapi = custom_openapi
+
+@app.middleware("http")
+async def add_swagger_no_cache_headers(request: Request, call_next):
+  response = await call_next(request)
+  if request.url.path in {"/docs", "/redoc", "/openapi.json"}:
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+  return response
 
 # Dépendance essentielle : Gestion du cycle de vie de la session de base de données
 # Elle ouvre une connexion à chaque requête HTTP et la referme automatiquement à la fin
@@ -28,7 +47,7 @@ def get_db():
 ### routes : Utilisateurs
 
 # Cela indique à FastAPI et à Swagger où se trouve la porte d'entrée pour s'authentifier
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login/")
 
 @app.post("/login/", tags=["Authentification"])
 def connexion(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -56,20 +75,42 @@ def inscrire_utilisateur(utilisateur: schemas.UtilisateurCreate, db: Session = D
     )
   return crud.create_utilisateur(db=db, utilisateur=utilisateur)
 
-@app.patch("/utilisateurs/{utilisateur_id}", response_model=schemas.UtilisateurBase, tags=["Utilisateur"])
-def modifier_utilisateur(utilisateur_id: int, utilisateur_update: schemas.UtilisateurUpdate, db: Session = Depends(get_db)):
-   db_utilisateur = crud.update_utilisateur(db, utilisateur_id=utilisateur_id, utilisateur_update=utilisateur_update)
-   if db_utilisateur is None:
+@app.patch("/utilisateurs/{utilisateur_id}", response_model=schemas.UtilisateurResponse, tags=["Utilisateurs"])
+def modifier_utilisateur(utilisateur_id: UUID, utilisateur_update: schemas.UtilisateurUpdate, db: Session = Depends(get_db)):
+  db_utilisateur = crud.update_utilisateur(db, utilisateur_id=utilisateur_id, utilisateur_update=utilisateur_update)
+  if db_utilisateur is None:
       raise HTTPException(status_code=404, detail="Utilisateur introuvable")
-   return db_utilisateur
+  return db_utilisateur
 
-@app.delete("/utilisateurs/{utilisateur_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Utilisateur"])
-def supprimer_utilisateur(utilisateur_id: int, db: Session = Depends(get_db)):
-   deleted_user = crud.delete_utilisateur(db, utilisateur_id=utilisateur_id)
-   if not deleted_user:
+@app.delete("/utilisateurs/{utilisateur_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Utilisateurs"])
+def supprimer_utilisateur(utilisateur_id: UUID, db: Session = Depends(get_db)):
+  deleted_user = crud.delete_utilisateur(db, utilisateur_id=utilisateur_id)
+  if not deleted_user:
       raise HTTPException(status_code=404, detail="Utilisateur introuvable")
-   return None 
-   
+  return None 
+  
+@app.get("/utilisateurs/", response_model=List[schemas.UtilisateurResponse], tags=["Utilisateurs"])
+def lister_utilisateurs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+  return crud.get_utilisateurs(db, skip=skip, limit=limit)
+
+@app.get("/recherche/utilisateur", response_model=schemas.UtilisateurResponse, tags=["Utilisateurs"])
+def chercher_utilisateur_par_email(email: str, db: Session = Depends(get_db)):
+    db_utilisateur = crud.get_utilisateur_by_email(db, email=email)
+    if db_utilisateur is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur introuvable.")
+    return db_utilisateur
+  
+@app.get("/utilisateurs/{utilisateur_id}", response_model=schemas.UtilisateurResponse, tags=["Utilisateurs"])
+def chercher_utilisateur_par_id(utilisateur_id: UUID, db: Session = Depends(get_db)):
+    db_utilisateur = crud.get_utilisateur(db, utilisateur_id=utilisateur_id)
+    if db_utilisateur is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Utilisateur introuvable."
+        )
+    return db_utilisateur
+
+
 ### routes : Chantiers
 
 @app.post("/chantiers/", response_model=schemas.ChantierResponse, status_code=status.HTTP_201_CREATED, tags=["Chantiers"])

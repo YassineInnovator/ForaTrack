@@ -12,7 +12,10 @@ def get_utilisateur(db: Session, utilisateur_id: UUID):
   
 def get_utilisateur_by_email(db: Session, email: str):
     return db.query(models.Utilisateur).filter(models.Utilisateur.email == email).first()
-  
+
+def get_utilisateurs(db: Session, skip: int = 0, limit: int = 20):
+  return db.query(models.Utilisateur).offset(skip).limit(limit).all()
+
 def create_utilisateur(db: Session, utilisateur: schemas.UtilisateurCreate):
   mot_de_passe_hache = pwd_context.hash(utilisateur.mot_de_passe)
   
@@ -26,34 +29,35 @@ def create_utilisateur(db: Session, utilisateur: schemas.UtilisateurCreate):
   db.add(db_utilisateur)
   db.commit()
   db.refresh(db_utilisateur)
+  return db_utilisateur 
+
+def update_utilisateur(db: Session, utilisateur_id: UUID, utilisateur_update: schemas.UtilisateurUpdate):
+  db_utilisateur = db.query(models.Utilisateur).filter(models.Utilisateur.id == utilisateur_id).first()
+  if not db_utilisateur:
+    return None
+  
+  update_data = utilisateur_update.model_dump(exclude_unset=True)
+  
+  if "mot_de_passe" in update_data:
+      mot_de_passe_clair = update_data.pop("mot_de_passe")
+      update_data["mot_de_passe_h"] = pwd_context.hash(mot_de_passe_clair)
+  
+  for key, value in update_data.items():
+      setattr(db_utilisateur, key, value)
+  
+  db.commit()
+  db.refresh(db_utilisateur)
   return db_utilisateur
 
-def update_utilisateur(db: Session, utilisateur_id: int, utilisateur_update: schemas.UtilisateurUpdate):
-   db_utilisateur = db.query(models.Utilisateur).filter(models.Utilisateur.id == utilisateur_id).first()
-   if not db_utilisateur:
-      return None
-   
-   update_data = utilisateur_update.model_dump(exclude_unset=True)
-   
-   if "mot_de_passe" in update_data:
-      mot_de_passe_clair = update_data.pop("mot_de_passe")
-      db_utilisateur.mot_de_passe_h = pwd_context.hash(mot_de_passe_clair)
-
-   for key, value in update_data.items():
-      setattr(db_utilisateur, key, value)
-
-   db.commit()
-   db.refresh()
-   return db_utilisateur()
-
-def delete_utilisateur(db: Session, utilisateur_id: int) -> bool:
-   db_utilisateur = db.query(models.Utilisateur).filter(models.Utilisateur.id == utilisateur_id).first()
-   if not db_utilisateur:
+def delete_utilisateur(db: Session, utilisateur_id: UUID) -> bool:
+  db_utilisateur = db.query(models.Utilisateur).filter(models.Utilisateur.id == utilisateur_id).first()
+  
+  if not db_utilisateur:
       return False
-   
-   db.delete(db_utilisateur)
-   db.commit()
-   return True
+
+  db.delete(db_utilisateur)
+  db.commit()
+  return True
 
 ### CHANTIER ###
 
