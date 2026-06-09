@@ -65,7 +65,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     headers={"WWW-Authenticate": "Bearer"},
   )
   try:
-    payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+    payload = jwt.decode(token, str(auth.SECRET_KEY), algorithms=[auth.ALGORITHM])
     email = payload.get("sub")
     if email is None:
       raise credentials_exception
