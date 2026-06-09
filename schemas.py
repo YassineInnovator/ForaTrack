@@ -151,3 +151,8 @@ class ForageCompletResponse(ForageResponse):
   medias: List[MediaResponse] = []
   
   model_config = ConfigDict(from_attributes=True)
+  
+  
+# stocker proprement l'email que l'on va extraire du Token
+class TokenData(BaseModel):
+    email: Optional[str] = None

@@ -1,7 +1,7 @@
 import jwt
 from datetime import datetime, timedelta, timezone
 
-SECRET_KEY = "fora_track@!secret_cle_26"
+SECRET_KEY = "fora_track@!secret_cle_26_tres_securisee_et_longue"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120   # Le badge expire au bout de 2 heures
 

@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:0000@localhost:5432/Fora_db"
+SQLALCHEMY_DATABASE_URL = "postgresql+pg8000://postgres:0000@localhost:5432/Fora_db"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
