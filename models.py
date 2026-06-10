@@ -1,6 +1,7 @@
 import datetime
 import enum
 import uuid
+from zoneinfo import ZoneInfo
 from sqlalchemy import Column, String, Float, Integer, ForeignKey, DateTime, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -18,6 +19,11 @@ class StatutWorkflow(str,enum.Enum):
   EN_ATTENTE_VALIDATION = "EN_ATTENTE_VALIDATION"
   VALIDE = "VALIDE"
 
+def obtenir_heure_paris():
+    heure_utc = datetime.datetime.utcnow()
+    heure_paris = heure_utc + datetime.timedelta(hours=2)
+    return heure_paris
+  
 class LogAction(Base):
   __tablename__ = "logs_action"
   
@@ -25,7 +31,7 @@ class LogAction(Base):
   id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)  
   utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id", ondelete="SET NULL"), nullable=False)
   action = Column(String, nullable=False)
-  date_action = Column(DateTime, default=datetime.datetime.now)
+  date_action = Column(DateTime, default=obtenir_heure_paris)
   
 class Utilisateur(Base):
   __tablename__ = "utilisateur"
