@@ -1,9 +1,12 @@
+import datetime
 import enum
+import uuid
 from sqlalchemy import Column, String, Float, Integer, ForeignKey, DateTime, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
+
 
 class RoleUtilisateur(str,enum.Enum):
   TERRAIN = "TERRAIN"
@@ -14,6 +17,15 @@ class StatutWorkflow(str,enum.Enum):
   BROUILLON = "BROUILLON"
   EN_ATTENTE_VALIDATION = "EN_ATTENTE_VALIDATION"
   VALIDE = "VALIDE"
+
+class LogAction(Base):
+  __tablename__ = "logs_action"
+  
+  # On génère un ID unique pour chaque log
+  id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)  
+  utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id", ondelete="SET NULL"), nullable=False)
+  action = Column(String, nullable=False)
+  date_action = Column(DateTime, default=datetime.datetime.utcnow)
   
 class Utilisateur(Base):
   __tablename__ = "utilisateur"

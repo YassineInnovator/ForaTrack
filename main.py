@@ -1,5 +1,6 @@
 from typing import List
 from uuid import UUID
+import uuid
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.openapi.utils import get_openapi
 import jwt
@@ -14,6 +15,8 @@ import crud
 import logging  
 import schemas
 from database import SessionLocal
+from database import SessionLocal, engine
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -59,6 +62,7 @@ def get_db():
   finally:
     db.close()
     
+models.Base.metadata.create_all(bind=engine)
 
 ### routes : Utilisateurs
 # Cela indique à FastAPI et à Swagger où se trouve la porte d'entrée pour s'authentifier
@@ -156,6 +160,8 @@ def connexion(request: Request, form_data: OAuth2PasswordRequestForm = Depends()
         logger.info("3. Génération du token JWT...")
         access_token = auth.create_access_token(data={"sub": utilisateur.email})
         
+        crud.enregistrer_action(db=db, utilisateur_id=utilisateur.id, action="Connexion réussie") # type: ignore
+        
         logger.info("-> SUCCÈS : Token généré, connexion autorisée !")
         return {"access_token": access_token, "token_type": "bearer"}
 
@@ -168,7 +174,7 @@ def connexion(request: Request, form_data: OAuth2PasswordRequestForm = Depends()
         raise HTTPException(status_code=500, detail="Erreur interne du serveur. Regardez les logs.")
     
 @app.post("/utilisateurs/", response_model=schemas.UtilisateurResponse, status_code=status.HTTP_201_CREATED, tags=["Utilisateurs"])
-def inscrire_utilisateur(utilisateur: schemas.UtilisateurCreate, db: Session = Depends(get_db)):
+def inscrire_utilisateur(utilisateur: schemas.UtilisateurCreate, db: Session = Depends(get_db), admin_user : models.Utilisateur = Depends(get_admin_user)):
   # Vérifier si l'email existe déjà
   
   db_utilisateur = crud.get_utilisateur_by_email(db, email=utilisateur.email)
@@ -177,13 +183,30 @@ def inscrire_utilisateur(utilisateur: schemas.UtilisateurCreate, db: Session = D
       status_code=status.HTTP_400_BAD_REQUEST,
       detail="Cet email est déjà enregistré."
     )
-  return crud.create_utilisateur(db=db, utilisateur=utilisateur)
+  
+  nouvel_utilisateur = crud.create_utilisateur(db=db, utilisateur=utilisateur)
+  
+  crud.enregistrer_action(
+    db= db,
+    utilisateur_id = admin_user.id, # type: ignore
+    action = f" a crée un nouveau compte pour l'email : {utilisateur.email}" 
+  )
+  return nouvel_utilisateur
+
 
 @app.patch("/utilisateurs/{utilisateur_id}", response_model=schemas.UtilisateurBase, tags=["Utilisateurs"])
 def modifier_utilisateur(utilisateur_id: UUID, utilisateur_update: schemas.UtilisateurUpdate, db: Session = Depends(get_db), admin_user : models.Utilisateur = Depends(get_admin_user)):
   db_utilisateur = crud.update_utilisateur(db, utilisateur_id=utilisateur_id, utilisateur_update=utilisateur_update)
+  
   if db_utilisateur is None:
-      raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    
+  crud.enregistrer_action(
+        db=db,
+        utilisateur_id=admin_user.id,  # type: ignore
+        action=f"A modifié les informations du compte utilisateur (ID : {utilisateur_id})"
+    )
+    
   return db_utilisateur
 
 @app.delete("/utilisateurs/{utilisateur_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Utilisateurs"])
@@ -191,17 +214,38 @@ def supprimer_utilisateur(utilisateur_id: UUID, db: Session = Depends(get_db), a
   deleted_user = crud.delete_utilisateur(db, utilisateur_id=utilisateur_id)
   if not deleted_user:
       raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+  
+  crud.enregistrer_action(
+    db=db,
+    utilisateur_id=admin_user.id, # type: ignore
+    action=f"A supprimé définitivement le compte d'utilisateur {utilisateur_id} !"
+  )
   return None 
   
 @app.get("/utilisateurs/", response_model=List[schemas.UtilisateurResponse], tags=["Utilisateurs"])
-def lister_utilisateurs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), admin_user : models.Utilisateur = Depends(get_admin_user)):
-  return crud.get_utilisateurs(db, skip=skip, limit=limit)
+def lister_utilisateurs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user : models.Utilisateur = Depends(get_admin_user)):
+  utilisateurs = crud.get_utilisateurs(db, skip=skip, limit=limit)
+    
+  crud.enregistrer_action(
+        db=db, 
+        utilisateur_id=current_user.id,  # type: ignore
+        action="A consulté la liste globale des utilisateurs"
+    )
+    
+  return utilisateurs
 
 @app.get("/recherche/utilisateur", response_model=schemas.UtilisateurResponse, tags=["Utilisateurs"])
 def chercher_utilisateur_par_email(email: str, db: Session = Depends(get_db), admin_user : models.Utilisateur = Depends(get_admin_user)):
     db_utilisateur = crud.get_utilisateur_by_email(db, email=email)
     if db_utilisateur is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur introuvable.")
+    
+    crud.enregistrer_action(
+        db=db,
+        utilisateur_id=admin_user.id,  # type: ignore
+        action=f"A recherché les informations de l'utilisateur par email : {email}"
+    )
+    
     return db_utilisateur
   
 @app.get("/utilisateurs/{utilisateur_id}", response_model=schemas.UtilisateurResponse, tags=["Utilisateurs"])
@@ -212,6 +256,13 @@ def chercher_utilisateur_par_id(utilisateur_id: UUID, db: Session = Depends(get_
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Utilisateur introuvable."
         )
+    
+    crud.enregistrer_action(
+        db=db,
+        utilisateur_id=admin_user.id,  # type: ignore
+        action=f"A consulté le profil détaillé de l'utilisateur (ID : {utilisateur_id})"
+    )
+    
     return db_utilisateur
 
 
