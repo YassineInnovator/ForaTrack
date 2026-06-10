@@ -144,3 +144,12 @@ def create_media(db: Session, media: schemas.MediaCreate):
 
 def get_medias_by_forage(db: Session, forage_id: UUID):
     return db.query(models.Media).filter(models.Media.forage_id == forage_id).all()
+
+
+def enregistrer_action(db: Session, utilisateur_id: UUID, action: str):
+  nouveau_log = models.LogAction(utilisateur_id=utilisateur_id, action= action)
+  
+  db.add(nouveau_log)
+  db.commit()
+  db.refresh(nouveau_log)
+  return nouveau_log
