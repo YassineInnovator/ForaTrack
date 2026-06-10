@@ -6,7 +6,9 @@ import jwt
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import auth
-
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import models
 import crud
 import logging  
@@ -21,6 +23,11 @@ app = FastAPI(
   description="Système de gestion et de suivi des données géologiques de forages",
   version="1.0.2"
 )
+
+limiter = Limiter(key_func=get_remote_address)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler) # type: ignore
 
 def custom_openapi():
   return get_openapi(
@@ -112,7 +119,8 @@ def get_terrain_utilisateur(current_user: models.Utilisateur = Depends(get_curre
   return current_user
 
 @app.post("/login/", tags=["Authentification"])
-def connexion(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def connexion(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     logger.info(f"--- TENTATIVE DE CONNEXION : {form_data.username} ---")
     
     try:
