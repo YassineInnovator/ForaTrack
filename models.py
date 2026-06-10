@@ -25,7 +25,7 @@ class LogAction(Base):
   id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)  
   utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id", ondelete="SET NULL"), nullable=False)
   action = Column(String, nullable=False)
-  date_action = Column(DateTime, default=datetime.datetime.utcnow)
+  date_action = Column(DateTime, default=datetime.datetime.now)
   
 class Utilisateur(Base):
   __tablename__ = "utilisateur"
