@@ -143,6 +143,13 @@ class ForageResponse(ForageBase):
   
   model_config = ConfigDict(from_attributes=True)
   
+class ForageUpdate(BaseModel):
+  nom_forage: Optional[str] = None
+  campagne: Optional[str] = None
+  galerie_proche: Optional[str] = None
+  pm: Optional[float] = None
+  situation: Optional[str] = None
+  statut: Optional[StatutWorkflow] = None
   
 
 class ForageCompletResponse(ForageResponse):

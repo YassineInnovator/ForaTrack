@@ -270,34 +270,145 @@ def chercher_utilisateur_par_id(utilisateur_id: UUID, db: Session = Depends(get_
 
 @app.post("/chantiers/", response_model=schemas.ChantierResponse, status_code=status.HTTP_201_CREATED, tags=["Chantiers"])
 def creer_un_chantier(chantier: schemas.ChantierCreate, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
-    return crud.create_chantier(db=db, chantier=chantier)
+    nouveau_chantier = crud.create_chantier(db=db, chantier=chantier, utilisateur_id=terrain_user.id)# type: ignore
+    
+    crud.enregistrer_action(
+      db=db,
+      utilisateur_id=terrain_user.id, #type: ignore
+      action=f"{terrain_user.prenom} a crée le chantier {chantier.nom_chantier}"
+    )
 
-
+    return nouveau_chantier
+    
 @app.get("/chantiers/", response_model=List[schemas.ChantierResponse], tags=["Chantiers"])
 def lister_les_chantiers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
-    return crud.get_chantiers(db, skip=skip, limit=limit)
+    chantiers = crud.get_chantiers(db, skip=skip, limit=limit)
   
+    crud.enregistrer_action(
+      db=db,
+      utilisateur_id=terrain_user.id, #type: ignore
+      action=f"{terrain_user.prenom} a consulté la liste des chantiers"
+    )
 
-
+    return chantiers
+  
 ### routes : Forages
 
 @app.post("/forages/", response_model=schemas.ForageResponse, status_code=status.HTTP_201_CREATED, tags=["Forages"])
 def creer_un_forage(forage: schemas.ForageCreate, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
-    # Optionnel : On pourrait vérifier ici si la galerie_id existe bien avant de créer
-    return crud.create_forage(db=db, forage=forage)
+    galerie = crud.get_galerie(db= db, galerie_id=forage.galerie_id)
+    
+    if not galerie :
+      raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, 
+        detail="Galerie introuvable."
+      )      
 
+    # Cette fonction s'occupe de créer le forage ET d'enregistrer le log en même temps !
+    nouveau_forage = crud.create_forage(db= db, forage=forage, utilisateur_id=terrain_user.id) # type: ignore
+    
+    return nouveau_forage
+  
+  
 @app.get("/forages/{forage_id}", response_model=schemas.ForageCompletResponse, tags=["Forages"])
 def obtenir_details_forage_complet(forage_id: UUID, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
-    db_forage = crud.get_forage(db, forage_id=forage_id)
+    db_forage = crud.get_forage(db, forage_id=forage_id) # type: ignore
     if db_forage is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Forage introuvable."
         )
+        
+    crud.enregistrer_action(
+      db= db,
+      utilisateur_id=terrain_user.id,# type: ignore
+      action=f"{terrain_user.prenom} a consulté(e) les détails du Forage {db_forage.nom_forage}"
+    )
     # Grâce aux relationships de SQLAlchemy et à Pydantic, 
     # cela va inclure automatiquement les listes d'oxydations, diagraphies et médias !
     return db_forage
   
+@app.get("/rechercher/forages/", response_model=schemas.ForageResponse, tags=["Forages"])
+def chercher_forage_par_nom( nom_forage: str, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
+    forage = crud.get_forage_by_name(db=db, nom_forage=nom_forage)
+    
+    if forage is None:
+      raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Forage introuvable."
+        )
+    
+    crud.enregistrer_action(
+        db=db,
+        utilisateur_id=terrain_user.id,  # type: ignore
+        action=f"{terrain_user.prenom} a lister les détails du Forage {forage.nom_forage} par son nom"
+    )
+    
+    return forage
+    
+@app.patch("/modifier/forages/{forage_id}", response_model=schemas.ForageBase, tags=["Forages"])
+def update_forage(forage_id: UUID, forage_update: schemas.ForageUpdate, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
+  db_forage = crud.update_forage(db=db, forage_update=forage_update,forage_id=forage_id, utilisateur_id=terrain_user)
+  
+  if db_forage is None : 
+    raise HTTPException(status_code=404, detail="Forage introuvable")
+  
+  crud.enregistrer_action(
+    db=db,
+    utilisateur_id=terrain_user.id,  # type: ignore
+    action=f"{terrain_user.prenom} a modifié des informations sur le forage {forage_id}"
+  ) 
+  
+  return db_forage
+
+@app.delete("/supprimer/forages/{forage_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Forages"])
+def supprimer_forage(forage_id: UUID, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
+  deleted_forage = crud.delete_forage(db=db, forage_id=forage_id, utilisateur_id=terrain_user)
+  
+  if not deleted_forage :
+    raise HTTPException(status_code=404, detail="Forage introuvable")
+  
+  crud.enregistrer_action(
+    db=db,
+    utilisateur_id=terrain_user.id, # type: ignore
+    action=f"{terrain_user.prenom} a supprimé définitivement le Forage {forage_id} !"
+  )
+
+@app.post("/galeries/", response_model=schemas.GalerieResponse, tags=["Galeries"])
+def creer_galerie(galerie: schemas.GalerieCreate, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
+  chantier = crud.get_chantier(db, chantier_id=galerie.chantier_id) # type: ignore
+  if not chantier :
+    raise HTTPException(status_code=404, detail="Chantier non trouvé")
+  
+  nouvelle_galerie = crud.create_galerie(db= db, galerie=galerie, utilisateur_id=terrain_user.id) # type: ignore
+  
+  crud.enregistrer_action(
+    db= db,
+    utilisateur_id= terrain_user.id, # type: ignore
+    action=f"Création de la galerie '{galerie.nom_galerie}' pour le chantier : {chantier.nom_chantier}"
+  )
+  
+  return nouvelle_galerie
+
+@app.get("/chantiers/{chantier_id}/galeries", response_model=List[schemas.GalerieResponse], tags=["Galeries"])
+def lister_les_galeries_dun_chantier(chantier_id: UUID ,db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
+  
+  list_galeries_chantier = crud.get_galeries_by_chantier(db= db, chantier_id=chantier_id)
+  
+  if list_galeries_chantier is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chantier introuvable."
+        )
+        
+  crud.enregistrer_action(
+    db= db,
+    utilisateur_id= terrain_user.id, # type: ignore
+    action=f"Consultation des galeries du chantier : {chantier_id} par l'ingénieur Terrain : {terrain_user.prenom}"
+  )
+  
+  return list_galeries_chantier
+
 # Route de base pour vérifier que le serveur tourne
 @app.get("/", tags=["Racine"])
 def racine():

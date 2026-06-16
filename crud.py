@@ -67,11 +67,13 @@ def get_chantier(db: Session, chantier_id: UUID):
 def get_chantiers(db: Session, skip: int = 0, limit: int = 100):
   return db.query(models.Chantier).offset(skip).limit(limit).all()
 
-def create_chantier(db: Session, chantier: schemas.ChantierCreate):
-  db_chantier = models.Chantier(**chantier.model_dump())
+def create_chantier(db: Session, chantier: schemas.ChantierCreate, utilisateur_id: UUID):
+  db_chantier = models.Chantier(nom_chantier=chantier.nom_chantier)
   db.add(db_chantier)
   db.commit()
   db.refresh(db_chantier)
+  
+  enregistrer_action(db, utilisateur_id, f"Création du chantier : {db_chantier.nom_chantier}")
   return db_chantier
 
 
@@ -83,11 +85,13 @@ def get_galerie(db: Session, galerie_id: UUID):
 def get_galeries_by_chantier(db: Session, chantier_id: UUID):
   return db.query(models.Galeries).filter(models.Galeries.chantier_id == chantier_id).all()
 
-def create_galerie(db: Session, galerie: schemas.GalerieCreate):
+def create_galerie(db: Session, galerie: schemas.GalerieCreate, utilisateur_id: UUID):
   db_galerie = models.Galeries(**galerie.model_dump())
   db.add(db_galerie)
   db.commit()
   db.refresh(db_galerie)
+  
+  enregistrer_action(db, utilisateur_id, f"Création de la galerie : {db_galerie.nom_galerie}")
   return db_galerie
 
 
@@ -98,15 +102,53 @@ def get_forage(db: Session, forage_id: UUID):
 
 def get_forages(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Forage).offset(skip).limit(limit).all()
-
-def create_forage(db: Session, forage: schemas.ForageCreate):
-    db_forage = models.Forage(**forage.model_dump())
+  
+def get_forage_by_name(db: Session, nom_forage: str):
+  return db.query(models.Forage).filter(models.Forage.nom_forage == nom_forage).first()
+  
+def create_forage(db: Session, forage: schemas.ForageCreate, utilisateur_id : UUID):
+    
+    donnees_forage = forage.model_dump()
+    
+    # 2. On force/écrase proprement la valeur de 'cree_par'
+    donnees_forage["cree_par"] = utilisateur_id
+    
+    db_forage = models.Forage(**donnees_forage)
+    
     db.add(db_forage)
     db.commit()
     db.refresh(db_forage)
+    
+    enregistrer_action(db, utilisateur_id, f"Création du forage : {db_forage.nom_forage}")
     return db_forage
+
+def update_forage(db: Session, forage_id: UUID, forage_update: schemas.ForageUpdate, utilisateur_id: UUID):
+  db_forage = get_forage(db=db, forage_id=forage_id)
   
+  if not db_forage : 
+    return None
   
+  update_data = forage_update.model_dump(exclude_unset=True)
+  
+  # On met à jour les attributs du modèle SQLAlchemy
+  for key, value in update_data.items():
+    setattr(db_forage, key, value)
+        
+  db.commit()
+  db.refresh(db_forage)
+  
+  return db_forage
+
+def delete_forage(db: Session, forage_id: UUID, utilisateur_id: UUID) -> bool:
+    db_forage = get_forage(db, forage_id)
+    
+    if not db_forage:
+        return False
+          
+    db.delete(db_forage)
+    db.commit()
+    
+    return True
 ### MEASURES & MEDIAS 
 
 # --- Oxydation ---
