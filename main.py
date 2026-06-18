@@ -328,24 +328,29 @@ def obtenir_details_forage_complet(forage_id: UUID, db: Session = Depends(get_db
     # cela va inclure automatiquement les listes d'oxydations, diagraphies et médias !
     return db_forage
   
-@app.get("/rechercher/forages/", response_model=schemas.ForageResponse, tags=["Forages"])
-def chercher_forage_par_nom( nom_forage: str, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
-    forage = crud.get_forage_by_name(db=db, nom_forage=nom_forage)
+@app.get("/rechercher/forages/", response_model=List[schemas.ForageResponse], tags=["Forages"])
+def chercher_forage_par_nom( terme_recherche: str, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
+    forages_trouves = crud.get_forage_by_name(db=db, utilisateur=terrain_user, terme_recherche=terme_recherche)
     
-    if forage is None:
+    if not forages_trouves:
       raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Forage introuvable."
+            detail=f"Aucun forage trouvé contenant '{terme_recherche}'"
         )
     
     crud.enregistrer_action(
         db=db,
         utilisateur_id=terrain_user.id,  # type: ignore
-        action=f"{terrain_user.prenom} a lister les détails du Forage {forage.nom_forage} par son nom"
+        action=f"{terrain_user.prenom} a recherché les forages par mot-clé : '{terme_recherche}' ({len(forages_trouves)} forage(s) trouvé(s))"
     )
     
-    return forage
+    return forages_trouves
     
+@app.get("/afficher/forages/", response_model=List[schemas.ForageResponse], tags=["Forages"])
+def lister_tous_les_forages(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
+    # On passe le 'terrain_user' complet à la fonction CRUD
+    return crud.get_forages(db=db, utilisateur=terrain_user, skip=skip, limit=limit)
+
 @app.patch("/modifier/forages/{forage_id}", response_model=schemas.ForageBase, tags=["Forages"])
 def update_forage(forage_id: UUID, forage_update: schemas.ForageUpdate, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
   db_forage = crud.update_forage(db=db, forage_update=forage_update,forage_id=forage_id, utilisateur_id=terrain_user)

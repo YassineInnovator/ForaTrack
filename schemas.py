@@ -122,18 +122,15 @@ class MediaResponse(MediaBase):
   
   model_config = ConfigDict(from_attributes=True)
 
-
 class ForageBase(BaseModel):
   nom_forage: str
   campagne: Optional[str] = None
   galerie_proche: Optional[str] = None
   pm: Optional[float] = None
   situation: Optional[str] = None
-  statut: StatutWorkflow = StatutWorkflow.BROUILLON
   
 class ForageCreate(ForageBase):
   galerie_id: UUID
-  cree_par: UUID
   
 class ForageResponse(ForageBase):
   id: UUID

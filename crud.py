@@ -100,11 +100,25 @@ def create_galerie(db: Session, galerie: schemas.GalerieCreate, utilisateur_id: 
 def get_forage(db: Session, forage_id: UUID):
     return db.query(models.Forage).filter(models.Forage.id == forage_id).first()
 
-def get_forages(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Forage).offset(skip).limit(limit).all()
+def get_forages(db: Session, utilisateur: models.Utilisateur, skip: int = 0, limit: int = 100):
   
-def get_forage_by_name(db: Session, nom_forage: str):
-  return db.query(models.Forage).filter(models.Forage.nom_forage == nom_forage).first()
+    role_nettoye = str(utilisateur.role).split(".")[-1].strip().upper()
+  
+    requete = db.query(models.Forage)
+    
+    if role_nettoye == "TERRAIN":
+        requete = requete.filter(models.Forage.cree_par == utilisateur.id)
+        
+    return requete.offset(skip).limit(limit).all()
+  
+def get_forage_by_name(db: Session, utilisateur: models.Utilisateur, terme_recherche: str):
+  requete = db.query(models.Forage).filter(models.Forage.nom_forage.ilike(f"%{terme_recherche}%"))
+  
+  if str(utilisateur.role) == "TERRAIN":
+        requete = requete.filter(models.Forage.cree_par == utilisateur.id)
+        
+  # On retourn la liste complète des résultats      
+  return requete.all()
   
 def create_forage(db: Session, forage: schemas.ForageCreate, utilisateur_id : UUID):
     
