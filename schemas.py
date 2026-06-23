@@ -1,6 +1,6 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator, UUID4
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List
 from models import RoleUtilisateur, StatutWorkflow
 
@@ -76,19 +76,32 @@ class GalerieResponse(GalerieBase):
   model_config = ConfigDict(from_attributes=True)
   
 class OxydationBase(BaseModel):
-  profondeur: float
+  '''profondeur: float
   degre_oxydation: Optional[str] = None
-  remarques: Optional[str] = None
+  remarques: Optional[str] = None'''
+  
+  forage: Optional[str] = None
+  temps_apres_carottage_h: Optional[float] = None
+  temps_apres_creusement_j: Optional[float] = None
+  # Dans schemas.py
+  gypse: Optional[float] = None
+  bioturbations_oxydees: Optional[float] = None
+  patine_oxydation: Optional[float] = None
+  oxydation_masse: Optional[float] = None
+  gypse_sur_debris: Optional[float] = None
+  bioturbations_sur_debris: Optional[float] = None
+  patine_sur_debris: Optional[float] = None
   
 class OxydationCreate(OxydationBase):
-  forage_id: UUID   
+  forage_id: UUID4   
   
 class OxydationResponse(OxydationBase):
-  id: UUID
-  forage_id: UUID
+  id: UUID4
+  forage_id: UUID4
   date_mesure: datetime
   
-  model_config = ConfigDict(from_attributes=True)
+  class Config:
+    from_attributes = True
 
 
 class DiagraphieBase(BaseModel):
@@ -123,22 +136,41 @@ class MediaResponse(MediaBase):
   model_config = ConfigDict(from_attributes=True)
 
 class ForageBase(BaseModel):
-  nom_forage: str
+  forage: str  # ⚠️ Obligatoire
   campagne: Optional[str] = None
+  galerie: Optional[str] = None
   galerie_proche: Optional[str] = None
   pm: Optional[float] = None
   situation: Optional[str] = None
+  debut_du_suivi: Optional[date] = None
+  fin_du_suivi: Optional[date] = None
+  longueur: Optional[float] = None
+  distance_ref_par: Optional[float] = None
+  diametre_forage: Optional[float] = None
+  gisement: Optional[float] = None
+  inclinaison: Optional[float] = None
+  numero_rapport: Optional[str] = None
+  x_tete: Optional[float] = None
+  x_pied: Optional[float] = None
+  y_tete: Optional[float] = None
+  y_pied: Optional[float] = None
+  z_tete: Optional[float] = None
+  z_pied: Optional[float] = None
+  log: Optional[bool] = None
   
 class ForageCreate(ForageBase):
-  galerie_id: UUID
+  galerie_id: UUID4
   
 class ForageResponse(ForageBase):
-  id: UUID
-  galerie_id: UUID
-  cree_par: UUID
-  date_creation: datetime
+  id: UUID4
+  galerie_id: Optional[UUID4] = None
+  cree_par: Optional[UUID4] = None
+  statut: Optional[StatutWorkflow] = None
+  date_creation: Optional[datetime] = None
+  est_actif: Optional[bool] = None
   
-  model_config = ConfigDict(from_attributes=True)
+  class Config:
+    from_attributes = True
   
 class ForageUpdate(BaseModel):
   nom_forage: Optional[str] = None

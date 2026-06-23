@@ -102,20 +102,15 @@ def get_forage(db: Session, forage_id: UUID):
 
 def get_forages(db: Session, utilisateur: models.Utilisateur, skip: int = 0, limit: int = 100):
   
-    role_nettoye = str(utilisateur.role).split(".")[-1].strip().upper()
-  
     requete = db.query(models.Forage)
     
-    if role_nettoye == "TERRAIN":
-        requete = requete.filter(models.Forage.cree_par == utilisateur.id)
+    requete = requete.filter(models.Forage.est_actif == True)
         
     return requete.offset(skip).limit(limit).all()
   
 def get_forage_by_name(db: Session, utilisateur: models.Utilisateur, terme_recherche: str):
-  requete = db.query(models.Forage).filter(models.Forage.nom_forage.ilike(f"%{terme_recherche}%"))
+  requete = db.query(models.Forage).filter(models.Forage.forage.ilike(f"%{terme_recherche}%"))
   
-  if str(utilisateur.role) == "TERRAIN":
-        requete = requete.filter(models.Forage.cree_par == utilisateur.id)
         
   # On retourn la liste complète des résultats      
   return requete.all()
@@ -133,7 +128,7 @@ def create_forage(db: Session, forage: schemas.ForageCreate, utilisateur_id : UU
     db.commit()
     db.refresh(db_forage)
     
-    enregistrer_action(db, utilisateur_id, f"Création du forage : {db_forage.nom_forage}")
+    enregistrer_action(db, utilisateur_id, f"Création du forage : {db_forage.forage}")
     return db_forage
 
 def update_forage(db: Session, forage_id: UUID, forage_update: schemas.ForageUpdate, utilisateur_id: UUID):
@@ -156,11 +151,15 @@ def update_forage(db: Session, forage_id: UUID, forage_update: schemas.ForageUpd
 def delete_forage(db: Session, forage_id: UUID, utilisateur_id: UUID) -> bool:
     db_forage = get_forage(db, forage_id)
     
-    if not db_forage:
+    if not db_forage or not db_forage.est_actif: # type: ignore
         return False
           
-    db.delete(db_forage)
+    nom_forage_supprime = db_forage.forage
+          
+    db_forage.est_actif = False # type: ignore
     db.commit()
+    
+    enregistrer_action(db, utilisateur_id, f"🗑️ Suppression logique (archivage) du forage : {nom_forage_supprime}")
     
     return True
 ### MEASURES & MEDIAS 

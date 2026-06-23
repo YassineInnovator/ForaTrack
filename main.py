@@ -322,7 +322,7 @@ def obtenir_details_forage_complet(forage_id: UUID, db: Session = Depends(get_db
     crud.enregistrer_action(
       db= db,
       utilisateur_id=terrain_user.id,# type: ignore
-      action=f"{terrain_user.prenom} a consulté(e) les détails du Forage {db_forage.nom_forage}"
+      action=f"{terrain_user.prenom} a consulté(e) les détails du Forage {db_forage.forage}"
     )
     # Grâce aux relationships de SQLAlchemy et à Pydantic, 
     # cela va inclure automatiquement les listes d'oxydations, diagraphies et médias !
@@ -413,6 +413,107 @@ def lister_les_galeries_dun_chantier(chantier_id: UUID ,db: Session = Depends(ge
   )
   
   return list_galeries_chantier
+
+import csv
+import io
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from sqlalchemy.orm import Session
+# N'oublie pas d'importer tes 'models' et ton 'get_db' selon l'architecture de ton projet
+
+import csv
+import io
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from sqlalchemy.orm import Session
+# Assure-toi d'importer tes models et get_db
+# import models
+# from database import get_db
+
+@app.post("/importer/oxydations/fichier-brut/", tags=["Importation"])
+async def importer_fichier_brut(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    contenu = await file.read()
+    texte_decode = contenu.decode("utf-8")
+    
+    # Le fichier n'a pas d'en-tête, on utilise le reader basique avec le point-virgule
+    lecteur = csv.reader(io.StringIO(texte_decode), delimiter=';')
+
+    compteur = 0
+    erreurs = []
+
+    # 💡 Fonction utilitaire pour nettoyer les chiffres ("0,17" -> 0.17)
+    def nettoyer_chiffre(valeur_brute):
+        if not valeur_brute or str(valeur_brute).strip() == "":
+            return None
+        propre = str(valeur_brute).strip().replace('"', '').replace(',', '.')
+        try:
+            return float(propre)
+        except ValueError:
+            return None
+
+    # 💡 Fonction de conversion pour les colonnes Booléennes
+    # Si la cellule contient une valeur (ex: "0,17"), c'est True. Si elle est vide, c'est False.
+    def est_present(valeur_brute):
+        chiffre = nettoyer_chiffre(valeur_brute)
+        return chiffre is not None
+
+    for index, ligne in enumerate(lecteur, start=1):
+        # Sécurité : ignorer les lignes vides
+        if not ligne or len(ligne) == 0:
+            continue
+            
+        # 1. Le nom du forage (Index 0)
+        nom_brut = ligne[0].strip().replace('"', '') 
+        
+        if not nom_brut:
+            continue
+            
+        # 2. Le Mapping SQL
+        correspondance = db.query(models.ForageMapping).filter(models.ForageMapping.forage_nom == nom_brut).first()
+        
+        if correspondance:
+            # 3. Extraction sécurisée des 10 colonnes (de l'index 0 à 9)
+            val_carottage   = ligne[1] if len(ligne) > 1 else None
+            val_creusement  = ligne[2] if len(ligne) > 2 else None
+            val_gypse       = ligne[3] if len(ligne) > 3 else None
+            val_bioturb_ox  = ligne[4] if len(ligne) > 4 else None
+            val_patine_ox   = ligne[5] if len(ligne) > 5 else None
+            val_ox_masse    = ligne[6] if len(ligne) > 6 else None
+            val_gypse_deb   = ligne[7] if len(ligne) > 7 else None
+            val_bioturb_deb = ligne[8] if len(ligne) > 8 else None
+            val_patine_deb  = ligne[9] if len(ligne) > 9 else None
+
+            # 4. Création de l'objet pour la base de données
+            nouvelle_oxydation = models.Oxydation(
+                forage=nom_brut,
+                forage_id=correspondance.forage_id,
+                
+                # Les Float (Temps)
+                temps_apres_carottage_h=nettoyer_chiffre(val_carottage),
+                temps_apres_creusement_j=nettoyer_chiffre(val_creusement),
+                
+                # Les booléens (Observations géologiques)
+                gypse=nettoyer_chiffre(val_gypse),
+                bioturbations_oxydees=nettoyer_chiffre(val_bioturb_ox),
+                patine_oxydation=nettoyer_chiffre(val_patine_ox),
+                oxydation_masse=nettoyer_chiffre(val_ox_masse),
+                gypse_sur_debris=nettoyer_chiffre(val_gypse_deb),
+                bioturbations_sur_debris=nettoyer_chiffre(val_bioturb_deb),
+                patine_sur_debris=nettoyer_chiffre(val_patine_deb)
+                        )
+            
+            db.add(nouvelle_oxydation)
+            compteur += 1
+            
+        else:
+            erreurs.append(f"Ligne {index}: Forage '{nom_brut}' introuvable dans la table de mapping.")
+
+    # 5. Sauvegarde finale
+    db.commit()
+    
+    return {
+        "status": "Importation terminée",
+        "oxydations_inserees": compteur,
+        "erreurs_mapping": erreurs
+    }
 
 # Route de base pour vérifier que le serveur tourne
 @app.get("/", tags=["Racine"])
