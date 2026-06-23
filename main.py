@@ -515,6 +515,78 @@ async def importer_fichier_brut(file: UploadFile = File(...), db: Session = Depe
         "erreurs_mapping": erreurs
     }
 
+import csv
+import io
+from datetime import datetime
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+@app.post("/importer/diagraphies/fichier-brut/", tags=["Importation"])
+async def importer_fichier_diagrpahie(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    contenu = await file.read()
+    texte_decode = contenu.decode("utf-8")
+    
+    # Le fichier n'a pas d'en-tête, on utilise le reader basique avec le point-virgule
+    lecteur = csv.reader(io.StringIO(texte_decode), delimiter=';')
+
+    compteur = 0
+    erreurs = []
+
+    def parse_date(date_str):
+        try:
+            return datetime.strptime(date_str.strip(), "%d/%m/%Y %H:%M:%S")
+        except ValueError:
+            return None
+
+    # Fonction pour convertir "1" en True et "0" en False
+    def vers_bool(valeur):
+        return str(valeur).strip() == "1"
+
+    for index, ligne in enumerate(lecteur, start=1):
+        if not ligne or len(ligne) < 11:
+            continue
+          
+        # 1. Extraction des données selon l'ordre du fichier
+        num_diag     = ligne[0]
+        nom_forage   = ligne[1].replace('"', '')
+        str_date     = ligne[2]
+        prof_max     = ligne[3].replace('"', '')
+        
+        # 2. Le Mapping SQL
+        correspondance = db.query(models.ForageMapping).filter(models.ForageMapping.forage_nom == nom_forage).first()
+                
+        if correspondance:
+          nouvelle_diag = models.Diagraphie(
+                numero=num_diag,
+                forage_nom=nom_forage,
+                forage_id=correspondance.forage_id,
+                date_mesure=parse_date(str_date),
+                profondeur_max=float(prof_max) if prof_max else None,
+                
+                # Conversion 0/1 en Boolean
+                gamma_ray=vers_bool(ligne[4]),
+                diametreur=vers_bool(ligne[5]),
+                imagerie=vers_bool(ligne[6]),
+                trajectometrie=vers_bool(ligne[7]),
+                endoscope=vers_bool(ligne[8]),
+                uv=vers_bool(ligne[9]),
+                camera_axiale=vers_bool(ligne[10])
+            )
+            
+          db.add(nouvelle_diag)
+          compteur += 1
+            
+        else:
+          erreurs.append(f"Ligne {index}: Forage '{nom_forage}' introuvable.")
+
+    db.commit()
+    
+    return {
+        "status": "Importation diagraphies terminée",
+        "diagraphies_inserees": compteur,
+        "erreurs": erreurs
+    }
+
 # Route de base pour vérifier que le serveur tourne
 @app.get("/", tags=["Racine"])
 def racine():

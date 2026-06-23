@@ -104,7 +104,7 @@ class Forage(Base):
   galerie_liee = relationship("Galeries", back_populates="forages")
   createur = relationship("Utilisateur", back_populates="forages")
   oxydations = relationship("Oxydation", back_populates="forage_lie")
-  diagraphies = relationship("Diagraphie", back_populates="forage")
+  diagraphies = relationship("Diagraphie", back_populates="forage_ref")
   medias = relationship("Media", back_populates="forage")
     
 class Oxydation(Base):
@@ -136,14 +136,21 @@ class Diagraphie(Base):
   __tablename__ = "diagraphie"
   
   id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
-  profondeur_debut = Column(Float, nullable=False)
-  profondeur_fin = Column(Float, nullable=False)
-  type_mesure = Column(String(100))
-  valeur_mesure = Column(Float)
-  forage_id = Column(UUID(as_uuid=True), ForeignKey("forage.id", ondelete="CASCADE"), nullable=False)
-  date_mesure = Column(DateTime, server_default=func.now())
   
-  forage = relationship("Forage", back_populates="diagraphies")
+  forage_id = Column(UUID(as_uuid=True), ForeignKey("forage.id", ondelete="CASCADE"), nullable=False)
+  numero = Column(String(50), nullable=True)
+  forage_nom = Column(String(100), nullable=True)
+  date_mesure = Column(DateTime, server_default=func.now())
+  profondeur_max = Column(Float, nullable=True)
+  gamma_ray = Column(Boolean, default=False)
+  diametreur = Column(Boolean, default=False)
+  imagerie = Column(Boolean, default=False)
+  trajectometrie = Column(Boolean, default=False)
+  endoscope = Column(Boolean, default=False)
+  uv = Column(Boolean, default=False)
+  camera_axiale = Column(Boolean, default=False)
+  
+  forage_ref = relationship("Forage", back_populates="diagraphies")
   
 
 class Media(Base):

@@ -105,10 +105,16 @@ class OxydationResponse(OxydationBase):
 
 
 class DiagraphieBase(BaseModel):
-  profondeur_debut: float
-  profondeur_fin: float
-  type_mesure: Optional[str] = None
-  valeur_mesure: Optional[float] = None
+  numero: Optional[str] = None
+  forage: Optional[str] = None
+  profondeur_max: Optional[float] = None
+  gamma_ray: bool = False
+  diametreur: bool = False
+  imagerie: bool = False
+  trajectometrie: bool = False
+  endoscope: bool = False
+  uv: bool = False
+  camera_axiale: bool = False
   
 class DiagraphieCreate(DiagraphieBase):
   forage_id: UUID
