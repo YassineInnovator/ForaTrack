@@ -106,6 +106,7 @@ class Forage(Base):
   oxydations = relationship("Oxydation", back_populates="forage_lie")
   diagraphies = relationship("Diagraphie", back_populates="forage_ref")
   medias = relationship("Media", back_populates="forage")
+  rapports = relationship("RapportPDF", back_populates="forage_details", cascade="all, delete-orphan")
     
 class Oxydation(Base):
   __tablename__ = "oxydation"
@@ -149,7 +150,6 @@ class Diagraphie(Base):
   endoscope = Column(Boolean, default=False)
   uv = Column(Boolean, default=False)
   camera_axiale = Column(Boolean, default=False)
-  
   forage_ref = relationship("Forage", back_populates="diagraphies")
   
 
@@ -164,8 +164,21 @@ class Media(Base):
   
   forage = relationship("Forage", back_populates="medias")
   
+class RapportPDF(Base):
+    __tablename__ = "rapport_pdf"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    forage = Column(String(255)) # <-- AJOUT : Le nom en texte
+    forage_id = Column(UUID(as_uuid=True), ForeignKey("forage.id", ondelete="CASCADE"))
+    chemin_pdf = Column(String(255), nullable=True)
+    valide_par = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id", ondelete="CASCADE"), nullable=True)
+    date_validation = Column(DateTime, nullable=True)
   
-  
+    forage_details = relationship("Forage", back_populates="rapports")
+    
+    # On crée le lien vers la table Utilisateur
+    validateur = relationship("Utilisateur")
+    
 class ForageMapping(Base):
     __tablename__ = "forage_mapping"
 

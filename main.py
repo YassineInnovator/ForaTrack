@@ -17,6 +17,8 @@ import schemas
 from database import SessionLocal
 from database import SessionLocal, engine
 
+from fastapi.middleware.cors import CORSMiddleware
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,6 +34,20 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler) # type: ignore
 
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["http://localhost:5173"], # L'adresse par défaut de Vite/React
+  allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"],
+)
+
+# À rajouter dans main.py, par exemple juste en dessous de app = FastAPI()
+
+@app.get("/ping")
+def tester_connexion():
+    return {"status": "Succès", "message": "Le Backend FastAPI te dit bonjour ! 👋"}
+  
 def custom_openapi():
   return get_openapi(
     title=app.title,
@@ -424,10 +440,30 @@ import csv
 import io
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
-# Assure-toi d'importer tes models et get_db
-# import models
-# from database import get_db
 
+@app.get("/rapports/", response_model=List[schemas.RapportPDF])
+def lister_rapports(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Récupère la liste des rapports générés"""
+    return crud.get_rapports(db=db, skip=skip, limit=limit)
+
+@app.get("/rapports/{rapport_id}", response_model=schemas.RapportPDF)
+def obtenir_rapport(rapport_id: UUID, db: Session = Depends(get_db)):
+    rapport = crud.get_rapport(db=db, rapport_id=rapport_id)
+    if not rapport:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Rapport non trouvé")
+    return rapport
+      
+# 2. ENSUITE LE POST
+@app.post("/rapports/", response_model=schemas.RapportPDF)
+def creer_rapport(rapport: schemas.RapportPDFCreate, db: Session = Depends(get_db)):
+    """Crée un nouveau rapport"""
+    try:
+        # Correction : On appelle bien 'create_rapport' qui est le nom dans crud.py
+        return crud.creer_rapport(db=db, rapport=rapport)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erreur lors de la création : {str(e)}")
+      
 @app.post("/importer/oxydations/fichier-brut/", tags=["Importation"])
 async def importer_fichier_brut(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contenu = await file.read()
