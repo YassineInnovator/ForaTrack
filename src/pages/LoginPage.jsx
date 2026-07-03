@@ -37,7 +37,7 @@ export default function LoginPage({ onLoginSuccess }) {
       formData.append('password', password);
 
       // Appel au backend (N'oublie pas de mettre 127.0.0.1 si localhost pose problème)
-      const response = await fetch('http://127.0.0.1:8000/login/', {
+      const response = await fetch('http://127.0.0.1:8046/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData,
