@@ -195,6 +195,22 @@ class ForageCompletResponse(ForageResponse):
   model_config = ConfigDict(from_attributes=True)
   
   
+class RapportPDFBase(BaseModel):
+    forage: str
+    chemin_pdf: Optional[str] = None
+    date_validation: Optional[datetime] = None
+
+class RapportPDFCreate(RapportPDFBase):
+    forage_id: UUID
+
+class RapportPDF(RapportPDFBase):
+    id: UUID
+    forage_id: UUID
+    valide_par: Optional[UUID] = None
+
+    class Config:
+        from_attributes = True
+  
 # stocker proprement l'email que l'on va extraire du Token
 class TokenData(BaseModel):
     email: Optional[str] = None

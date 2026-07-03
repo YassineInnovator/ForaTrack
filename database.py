@@ -10,7 +10,7 @@ SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 if SQLALCHEMY_DATABASE_URL is None:
     raise ValueError("🚨 ERREUR CRITIQUE : La variable DATABASE_URL est introuvable dans le fichier .env !")
-  
+
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # SessionLocal sera utilisé plus tard pour ouvrir une transaction avec la DB à chaque requête web

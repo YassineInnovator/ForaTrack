@@ -188,7 +188,25 @@ def get_diagraphies_by_forage(db: Session, forage_id: UUID):
     return db.query(models.Diagraphie).filter(models.Diagraphie.forage_id == forage_id).all()
   
 
+def creer_rapport(db: Session, rapport:schemas.RapportPDFCreate):
+  nouveau_rapport = models.RapportPDF(
+        forage=rapport.forage,
+        forage_id=rapport.forage_id,
+        chemin_pdf=rapport.chemin_pdf,
+        date_validation=rapport.date_validation
+    )
+    
+  db.add(nouveau_rapport)
+  db.commit()
+  db.refresh(nouveau_rapport)
+  return nouveau_rapport
 
+def get_rapports(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.RapportPDF).offset(skip).limit(limit).all()
+
+def get_rapport(db: Session, rapport_id: UUID):
+  return db.query(models.RapportPDF).filter(models.RapportPDF.id == rapport_id).first()
+  
 # --- Media ---
 def create_media(db: Session, media: schemas.MediaCreate):
     db_media = models.Media(**media.model_dump())
