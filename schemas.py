@@ -208,6 +208,9 @@ class RapportPDF(RapportPDFBase):
     forage_id: UUID
     valide_par: Optional[UUID] = None
 
+    # AJOUT : On demande à Pydantic d'inclure le numéro du rapport
+    numero_rapport: Optional[str] = None
+    
     class Config:
         from_attributes = True
   

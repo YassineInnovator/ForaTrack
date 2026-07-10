@@ -187,6 +187,21 @@ def create_diagraphie(db: Session, diagraphie: schemas.DiagraphieCreate):
 def get_diagraphies_by_forage(db: Session, forage_id: UUID):
     return db.query(models.Diagraphie).filter(models.Diagraphie.forage_id == forage_id).all()
   
+def get_rapports(db: Session, skip: int = 0, limit: int = 100):
+    rapports =  db.query(models.RapportPDF).offset(skip).limit(limit).all()
+    
+    # On peuple manuellement le champ numero_rapport via la relation
+    for rapport in rapports:
+        if rapport.forage_details:
+            rapport.numero_rapport = rapport.forage_details.numero_rapport
+    
+    return rapports  
+
+def get_rapport(db: Session, rapport_id: UUID):
+  rapport = db.query(models.RapportPDF).filter(models.RapportPDF.id == rapport_id).first()
+  if rapport and rapport.forage_details:
+      rapport.numero_rapport = rapport.forage_details.numero_rapport
+  return rapport
 
 def creer_rapport(db: Session, rapport:schemas.RapportPDFCreate):
   nouveau_rapport = models.RapportPDF(
@@ -201,12 +216,6 @@ def creer_rapport(db: Session, rapport:schemas.RapportPDFCreate):
   db.refresh(nouveau_rapport)
   return nouveau_rapport
 
-def get_rapports(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.RapportPDF).offset(skip).limit(limit).all()
-
-def get_rapport(db: Session, rapport_id: UUID):
-  return db.query(models.RapportPDF).filter(models.RapportPDF.id == rapport_id).first()
-  
 # --- Media ---
 def create_media(db: Session, media: schemas.MediaCreate):
     db_media = models.Media(**media.model_dump())
