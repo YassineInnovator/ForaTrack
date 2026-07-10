@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Database, FolderOpen, Clock, FileWarning, CheckCircle, 
-  FileText, ChevronRight, FileType, FilePlus, Map, Table
+  FileText, ChevronRight, FileType, FilePlus, Map, Table, FileSpreadsheet
 } from 'lucide-react';
+
 import LoginPage from './pages/LoginPage';
 import CreateReportPage from './pages/CreateReportPage';
 import ReportDetailsPage from './pages/ReportDetailsPage';
 import FieldWizardPage from './pages/FieldWizardPage';
 import AdvancedDataGridPage from './pages/AdvancedDataGridPage';
+import SampleEntryPage from './pages/SampleEntryPage'; 
 
 const gingerBleu = "#1D365A";
 const gingerVert = "#8DC63F";
@@ -32,7 +34,7 @@ function DashboardPage({ token, onLogout, onNavigate }) {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8047/rapports/', {
+        const response = await fetch('http://172.20.10.6:8047/rapports/', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
@@ -59,26 +61,38 @@ function DashboardPage({ token, onLogout, onNavigate }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 font-sans">
-      <div className="max-w-5xl mx-auto">
-        <header className="mb-10 flex flex-col md:flex-row md:justify-between md:items-end gap-4 border-b border-slate-200 pb-6">
+    <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-800">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* Header avec Logo et Boutons */}
+        <header className="mb-10 flex flex-col xl:flex-row xl:justify-between xl:items-end gap-4 border-b border-slate-200 pb-6">
           <div>
             <GingerLogo />
             <p className="text-slate-500 mt-3 font-medium">Tableau de Bord - Rapports & Campagnes</p>
           </div>
+          
+          {/* Menu d'actions rapides */}
           <div className="flex gap-3 flex-wrap">
             <button onClick={onLogout} className="text-sm text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 px-5 py-2.5 rounded-full transition-colors font-medium shadow-sm">
               Déconnexion
             </button>
+            
+            {/* NOUVEAU BOUTON : Saisie Échantillons (Fiche FT06b) */}
+            <button onClick={() => onNavigate('SAMPLE_ENTRY')} className="flex items-center gap-2 text-sm text-white px-5 py-2.5 rounded-full shadow-sm hover:shadow-md transition-all bg-amber-600 hover:bg-amber-700">
+              <FileSpreadsheet size={18} /> Saisie Échantillons
+            </button>
+            
             <button onClick={() => onNavigate('FIELD_WIZARD')} className="flex items-center gap-2 text-sm text-white px-5 py-2.5 rounded-full shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: gingerBleu }}>
               <Map size={18} /> Saisie Terrain
             </button>
+            
             <button onClick={() => onNavigate('CREATE_REPORT')} className="flex items-center gap-2 text-sm text-white px-5 py-2.5 rounded-full shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: gingerVert }}>
               <FilePlus size={18} /> Nouveau Rapport
             </button>
           </div>
         </header>
 
+        {/* Liste des Rapports */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
           <h2 className="text-xl font-bold mb-6 flex items-center gap-3" style={{ color: gingerBleu }}>
             <FolderOpen size={24} style={{ color: gingerVert }} /> Dossiers de Rapports
@@ -139,6 +153,7 @@ function DashboardPage({ token, onLogout, onNavigate }) {
   );
 }
 
+// Le vrai routeur principal
 export default function App() {
   const [token, setToken] = useState(null);
   const [currentView, setCurrentView] = useState('DASHBOARD'); 
@@ -154,15 +169,26 @@ export default function App() {
     if (reportId) setSelectedReportId(reportId);
   };
 
+  // Si on n'est pas connecté, on bloque sur la page de Login
   if (!token) return <LoginPage onLoginSuccess={handleLoginSuccess} />;
 
+  // Le grand aiguilleur (Routeur manuel)
   switch (currentView) {
     case 'CREATE_REPORT':
       return <CreateReportPage token={token} onNavigate={handleNavigation} />;
+      
     case 'REPORT_DETAILS':
       return <ReportDetailsPage reportId={selectedReportId} token={token} onNavigate={handleNavigation} />;
+      
     case 'FIELD_WIZARD':
-      return <FieldWizardPage onNavigate={handleNavigation} />;
+      return <FieldWizardPage token={token} onNavigate={handleNavigation} />;
+      
+    case 'SAMPLE_ENTRY': // <-- LA NOUVELLE VUE AIGUILLÉE ICI
+      return <SampleEntryPage token={token} onNavigate={handleNavigation} />;
+      
+    case 'ADVANCED_GRID':
+      return <AdvancedDataGridPage token={token} onNavigate={handleNavigation} />;
+      
     case 'DASHBOARD':
     default:
       return <DashboardPage token={token} onLogout={() => setToken(null)} onNavigate={handleNavigation} />;
