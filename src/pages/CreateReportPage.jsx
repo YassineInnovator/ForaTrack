@@ -17,7 +17,7 @@ export default function CreateReportPage({ token, onNavigate }) {
   const [formData, setFormData] = useState({
     forage_id: '',
     forage_nom: '',
-    format: 'pdf',
+    format: '',
     chemin_pdf: '',
   });
 
@@ -25,7 +25,7 @@ export default function CreateReportPage({ token, onNavigate }) {
     const fetchForages = async () => {
       try {
         // Remplace l'URL si ta route s'appelle différemment (ex: /forages/)
-        const response = await fetch('http://127.0.0.1:8046/afficher/forages/', {
+        const response = await fetch('http://127.0.0.1:8047/afficher/forages/', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -71,7 +71,7 @@ export default function CreateReportPage({ token, onNavigate }) {
         chemin_pdf: formData.chemin_pdf
       };
 
-      const response = await fetch('http://127.0.0.1:8000/rapports/', {
+      const response = await fetch('http://127.0.0.1:8047/rapports/', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

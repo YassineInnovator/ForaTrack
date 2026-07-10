@@ -11,7 +11,7 @@ export default function ReportDetailsPage({ reportId, token, onNavigate }) {
   useEffect(() => {
     const fetchReportDetails = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8046/rapports/${reportId}`, {
+        const response = await fetch(`http://127.0.0.1:8047/rapports/${reportId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {

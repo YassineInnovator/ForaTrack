@@ -1,16 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Database, FolderOpen, Clock, FileWarning, CheckCircle, FileText, ChevronRight, FileType, FilePlus 
+  Database, FolderOpen, Clock, FileWarning, CheckCircle, 
+  FileText, ChevronRight, FileType, FilePlus, Map, Table
 } from 'lucide-react';
-
-// --- IMPORTS DES VRAIES PAGES (depuis le dossier src/pages) ---
 import LoginPage from './pages/LoginPage';
 import CreateReportPage from './pages/CreateReportPage';
 import ReportDetailsPage from './pages/ReportDetailsPage';
+import FieldWizardPage from './pages/FieldWizardPage';
+import AdvancedDataGridPage from './pages/AdvancedDataGridPage';
 
-// ============================================================================
-// 🎨 CHARTE GRAPHIQUE & COMPOSANTS PARTAGÉS
-// ============================================================================
 const gingerBleu = "#1D365A";
 const gingerVert = "#8DC63F";
 
@@ -27,19 +25,14 @@ const GingerLogo = () => (
   </div>
 );
 
-// ============================================================================
-// 📊 PAGE 2 : DASHBOARD (Sera séparée dans un fichier plus tard)
-// ============================================================================
 function DashboardPage({ token, onLogout, onNavigate }) {
-  // On remplace "mockReports" par un vrai State React
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Dès que la page se charge, on va chercher les rapports dans la base de données
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchReports = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8046/rapports/', {
+        const response = await fetch('http://127.0.0.1:8047/rapports/', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
@@ -47,7 +40,7 @@ function DashboardPage({ token, onLogout, onNavigate }) {
           setReports(data);
         }
       } catch (err) {
-        console.error("Erreur de connexion au serveur", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -60,7 +53,6 @@ function DashboardPage({ token, onLogout, onNavigate }) {
     return { label: 'Généré', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: Clock };
   };
 
-  // Petite fonction pour déduire si c'est du PDF ou du WORD selon le chemin saisi
   const getFormat = (chemin) => {
     if (!chemin) return 'PDF';
     return chemin.toLowerCase().endsWith('.docx') ? 'WORD' : 'PDF';
@@ -74,9 +66,12 @@ function DashboardPage({ token, onLogout, onNavigate }) {
             <GingerLogo />
             <p className="text-slate-500 mt-3 font-medium">Tableau de Bord - Rapports & Campagnes</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <button onClick={onLogout} className="text-sm text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 px-5 py-2.5 rounded-full transition-colors font-medium shadow-sm">
               Déconnexion
+            </button>
+            <button onClick={() => onNavigate('FIELD_WIZARD')} className="flex items-center gap-2 text-sm text-white px-5 py-2.5 rounded-full shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: gingerBleu }}>
+              <Map size={18} /> Saisie Terrain
             </button>
             <button onClick={() => onNavigate('CREATE_REPORT')} className="flex items-center gap-2 text-sm text-white px-5 py-2.5 rounded-full shadow-sm hover:shadow-md transition-all" style={{ backgroundColor: gingerVert }}>
               <FilePlus size={18} /> Nouveau Rapport
@@ -92,12 +87,10 @@ function DashboardPage({ token, onLogout, onNavigate }) {
           {loading ? (
             <div className="text-center py-10 text-slate-500 flex flex-col items-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-500 mb-4"></div>
-              Chargement de vos rapports...
             </div>
           ) : reports.length === 0 ? (
             <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
               <p className="text-slate-500 font-medium">Aucun rapport n'a encore été généré.</p>
-              <p className="text-sm text-slate-400 mt-1">Cliquez sur "Nouveau Rapport" pour commencer.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -116,22 +109,18 @@ function DashboardPage({ token, onLogout, onNavigate }) {
                         <FileText size={24} className="group-hover:text-blue-600 transition-colors" />
                       </div>
                       <div>
-                        {/* Affiche le vrai nom du forage stocké en base */}
                         <h3 className="font-bold text-lg" style={{ color: gingerBleu }}>
-                          Rapport : {report.forage || "Forage inconnu"}
+                          {report.forage}
                         </h3>
                         <div className="flex flex-wrap items-center gap-3 mt-2">
                           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border flex items-center gap-1 ${status.color}`}>
                             <StatusIcon size={12} /> {status.label}
                           </span>
-                          
-                          {/* Affiche le nom du fichier s'il a été renseigné */}
                           {report.chemin_pdf && (
                             <span className="text-xs text-slate-500 font-mono bg-slate-100 px-2 py-1 rounded truncate max-w-[200px]" title={report.chemin_pdf}>
                               {report.chemin_pdf.split('\\').pop().split('/').pop()}
                             </span>
                           )}
-                          
                           <span className="text-xs text-slate-500 uppercase flex items-center gap-1">
                              <FileType size={12}/> {getFormat(report.chemin_pdf)}
                           </span>
@@ -150,9 +139,6 @@ function DashboardPage({ token, onLogout, onNavigate }) {
   );
 }
 
-// ============================================================================
-// 🚀 LE CHEF D'ORCHESTRE (Le Routeur Principal)
-// ============================================================================
 export default function App() {
   const [token, setToken] = useState(null);
   const [currentView, setCurrentView] = useState('DASHBOARD'); 
@@ -168,16 +154,15 @@ export default function App() {
     if (reportId) setSelectedReportId(reportId);
   };
 
-  // 1. Si pas de token, on affiche la page de connexion importée !
   if (!token) return <LoginPage onLoginSuccess={handleLoginSuccess} />;
 
-  // 2. Le système de navigation ("Routeur")
   switch (currentView) {
     case 'CREATE_REPORT':
-      // On affiche la page de création importée (et on lui passe le token pour l'API)
       return <CreateReportPage token={token} onNavigate={handleNavigation} />;
     case 'REPORT_DETAILS':
       return <ReportDetailsPage reportId={selectedReportId} token={token} onNavigate={handleNavigation} />;
+    case 'FIELD_WIZARD':
+      return <FieldWizardPage onNavigate={handleNavigation} />;
     case 'DASHBOARD':
     default:
       return <DashboardPage token={token} onLogout={() => setToken(null)} onNavigate={handleNavigation} />;
