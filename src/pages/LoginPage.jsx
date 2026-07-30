@@ -38,14 +38,14 @@ export default function LoginPage({ onLoginSuccess }) {
       formData.append('password', password);
 
       // Appel au backend (N'oublie pas de mettre 127.0.0.1 si localhost pose problème)
-      const response = await fetch('http://127.0.0.1:8047/login/', {
+      const response = await fetch('http://127.0.0.1:8072/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error("Identifiants incorrects ou serveur injoignable.");
+        throw new Error("Identifiants incorrects");
       }
 
       const data = await response.json();

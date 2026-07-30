@@ -1,261 +1,145 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Save, Loader2, AlertCircle, CheckCircle, FileType, FolderGit2, Download, MapPin } from 'lucide-react';
+import { ArrowLeft, Save, FileType, Folder, CheckSquare, Loader2, CheckCircle } from 'lucide-react';
 
-const gingerBleu = "#1D365A";
 const gingerVert = "#8DC63F";
+const gingerBleu = "#1D365A";
 
 export default function CreateReportPage({ token, onNavigate }) {
+  const [foragesDisponibles, setForagesDisponibles] = useState([]);
+  const [selectedForages, setSelectedForages] = useState([]); 
+  const [format, setFormat] = useState('pdf');
+  const [chemin, setChemin] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loadingForages, setLoadingForages] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  
-  // Liste des forages récupérés depuis l'API
-  const [foragesDisponibles, setForagesDisponibles] = useState([]);
-
-  // État du formulaire
-  const [formData, setFormData] = useState({
-    forage_id: '',
-    forage_nom: '',
-    format: '',
-    chemin_pdf: '',
-  });
 
   useEffect(() => {
-    const fetchForages = async () => {
-      try {
-        // Remplace l'URL si ta route s'appelle différemment (ex: /forages/)
-        const response = await fetch('http://127.0.0.1:8047/afficher/forages/', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!response.ok) throw new Error("Impossible de charger les forages");
-        
-        const data = await response.json();
-        setForagesDisponibles(data);
-      } catch (err) {
-        setError("Erreur de chargement des forages. Avez-vous démarré FastAPI ?");
-      } finally {
-        setLoadingForages(false);
-      }
-    };
-    
-    fetchForages();
+    fetch('http://127.0.0.1:8072/afficher/forages/', { headers: { 'Authorization': `Bearer ${token}` }})
+      .then(r => r.json())
+      .then(setForagesDisponibles)
+      .catch(() => setError("Impossible de charger les forages."));
   }, [token]);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  // Quand on choisit un forage dans la liste déroulante, on stocke l'ID ET le Nom
-  const handleForageSelect = (e) => {
-    const selectedId = e.target.value;
-    const selectedForage = foragesDisponibles.find(f => f.id === selectedId);
-    
-    setFormData({
-      ...formData,
-      forage_id: selectedId,
-      forage_nom: selectedForage ? (selectedForage.forage_nom || selectedForage.nom || selectedForage.forage || "Forage inconnu") : ''
-    });
+  // CORRECTION : On utilise le "forage" (nom) comme identifiant
+  const toggleForage = (nomForage) => {
+    setSelectedForages(prev => 
+      prev.includes(nomForage) ? prev.filter(f => f !== nomForage) : [...prev, nomForage]
+    );
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // <--- AJOUT CRUCIAL ICI : empêche la page de se recharger !
+    e.preventDefault();
+    if (selectedForages.length === 0) return setError("Veuillez sélectionner au moins un forage.");
+    
     setLoading(true);
     setError(null);
 
-    try {
-      const payload = {
-        forage: formData.forage_nom,
-        forage_id: formData.forage_id,
-        chemin_pdf: formData.chemin_pdf
-      };
+    const payload = {
+      forages: selectedForages, // Envoi du tableau de noms
+      chemin_dossier: chemin || null,
+      format: format
+    };
 
-      const response = await fetch('http://127.0.0.1:8047/rapports/', {
+    try {
+      // Appel à la nouvelle route
+      const response = await fetch('http://127.0.0.1:8072/generer-rapport/', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Erreur lors de la création du rapport.");
-      }
+      if (!response.ok) throw new Error("Erreur lors de la création du fichier.");
+      
+      // LA MAGIE DU TÉLÉCHARGEMENT PHYSIQUE
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Rapport_Ginger_${format.toUpperCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
       
       setSuccess(true);
+      setTimeout(() => onNavigate('DASHBOARD'), 2500); // Retour au dashboard après 2.5s
+      
     } catch (err) {
-      setError(err.message || "Erreur de connexion au serveur.");
-    } finally {
+      setError(err.message);
       setLoading(false);
     }
   };
 
-  // AJOUTE CETTE FONCTION ICI
-  const handleDownload = () => {
-    // Ceci est un "Mock" (faux téléchargement pour tester l'UI).
-    // Plus tard, on appellera une route FastAPI qui renverra le VRAI fichier.
-    const contenuFactice = `Ceci est le rapport généré pour le forage : ${formData.forage_nom}`;
-    const blob = new Blob([contenuFactice], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    
-    // Création d'un lien invisible pour forcer le téléchargement
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Rapport_${formData.forage_nom}.${formData.format}`;
-    document.body.appendChild(a);
-    a.click();
-    
-    // Nettoyage
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
+  if (success) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-8 flex flex-col items-center justify-center">
+        <div className="bg-white p-10 rounded-2xl shadow-xl text-center max-w-md w-full animate-in zoom-in">
+          <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6"><CheckCircle size={40} /></div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Fichier Généré !</h2>
+          <p className="text-slate-500 mb-4">Le téléchargement a démarré dans votre navigateur et le fichier a été enregistré sur le serveur.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans">
-      <div className="max-w-3xl mx-auto">
-        <button 
-          onClick={() => onNavigate('DASHBOARD')} 
-          className="text-sm text-slate-500 hover:text-slate-800 mb-6 flex items-center gap-1 font-medium transition-colors"
-        >
-           &larr; Retour au tableau de bord
+      <div className="max-w-2xl mx-auto">
+        <button onClick={() => onNavigate('DASHBOARD')} className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 font-medium mb-6 transition-colors">
+          <ArrowLeft size={16} /> Retour aux rapports
         </button>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-          
-          {/* En-tête de la carte */}
-          <div className="flex items-center gap-4 mb-8 border-b border-slate-200 pb-6">
-            <div className="p-4 rounded-xl" style={{ backgroundColor: `${gingerVert}20`, color: gingerVert }}>
-              <FileText size={32} />
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Générateur de Rapport</h2>
+          <p className="text-slate-500 mb-8 pb-6 border-b border-slate-100">Créez et exportez un rapport technique pour un ou plusieurs forages.</p>
+
+          <div className="mb-8">
+            <label className="block text-sm font-semibold text-slate-700 mb-3">Sélectionnez les forages concernés *</label>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {foragesDisponibles.length === 0 ? <p className="text-sm text-slate-400 p-2">Aucun forage disponible.</p> : null}
+              
+              {/* CORRECTION DU KEY */}
+              {foragesDisponibles.map(f => (
+                <label key={f.forage} className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${selectedForages.includes(f.forage) ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-200 hover:border-blue-300'}`}>
+                  <input type="checkbox" className="hidden" checked={selectedForages.includes(f.forage)} onChange={() => toggleForage(f.forage)} />
+                  <div className={`w-5 h-5 rounded flex items-center justify-center border ${selectedForages.includes(f.forage) ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'}`}>
+                    {selectedForages.includes(f.forage) && <CheckSquare size={14} className="text-white" />}
+                  </div>
+                  <span className="font-bold text-slate-700">{f.forage || 'Sans nom'}</span>
+                </label>
+              ))}
             </div>
-            <div>
-              <h2 className="text-2xl font-bold" style={{ color: gingerBleu }}>Générateur de Rapport</h2>
-              <p className="text-slate-500 mt-1">Créez et exportez un rapport technique pour un forage existant.</p>
+            <p className="text-xs text-slate-400 mt-2">{selectedForages.length} forage(s) sélectionné(s)</p>
+          </div>
+
+          <div className="mb-8">
+            <label className="block text-sm font-semibold text-slate-700 mb-3">Format d'exportation souhaité</label>
+            <div className="grid grid-cols-2 gap-4">
+              <label className={`border-2 rounded-xl p-5 cursor-pointer flex flex-col items-center gap-2 transition-all ${format === 'pdf' ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                <input type="radio" name="format" value="pdf" checked={format === 'pdf'} onChange={(e) => setFormat(e.target.value)} className="hidden" />
+                <FileType size={32} className={format === 'pdf' ? 'text-red-600' : 'text-slate-400'} />
+                <span className="font-bold text-slate-800">Fichier PDF</span>
+              </label>
+              <label className={`border-2 rounded-xl p-5 cursor-pointer flex flex-col items-center gap-2 transition-all ${format === 'docx' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                <input type="radio" name="format" value="docx" checked={format === 'docx'} onChange={(e) => setFormat(e.target.value)} className="hidden" />
+                <FileType size={32} className={format === 'docx' ? 'text-blue-600' : 'text-slate-400'} />
+                <span className="font-bold text-slate-800">Fichier Word</span>
+              </label>
             </div>
           </div>
 
-          {/* ÉCRAN DE SUCCÈS */}
-          {success ? (
-            <div className="bg-green-50 border border-green-200 p-8 rounded-xl flex flex-col items-center justify-center text-center animate-in fade-in zoom-in duration-300">
-              <CheckCircle size={56} className="text-green-500 mb-4" />
-              <h3 className="text-2xl font-bold mb-2 text-green-900">Rapport Enregistré !</h3>
-              <p className="text-green-700 mb-8">Le rapport a été lié au forage avec succès dans la base de données.</p>
-              
-              <div className="flex gap-4 w-full max-w-md">
-                {/* MODIFIE LE BOUTON TÉLÉCHARGER ICI */}
-                <button 
-                  onClick={handleDownload} 
-                  className="flex-1 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg transition-all" 
-                  style={{ backgroundColor: gingerBleu }}
-                >
-                  <Download size={20} /> Télécharger (.{formData.format})
-                </button>
-                <button onClick={() => onNavigate('DASHBOARD')} className="flex-1 bg-white border border-slate-300 text-slate-700 font-bold py-3 px-4 rounded-xl hover:bg-slate-50 transition-all">
-                  Terminer
-                </button>
-              </div>
-            </div>
-          ) : (
-            
-            /* FORMULAIRE DE SAISIE */
-            <form onSubmit={handleSubmit} className="space-y-8">
-              
-              {/* Choix du forage (Liste déroulante API) */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Forage ou Campagne concernée *</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MapPin size={18} className="text-slate-400" />
-                  </div>
-                  <select
-                    name="forage_id"
-                    value={formData.forage_id}
-                    onChange={handleForageSelect}
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:ring-2 outline-none appearance-none bg-white cursor-pointer"
-                    style={{ '--tw-ring-color': gingerVert }}
-                    required
-                  >
-                    <option value="" disabled>-- Sélectionnez un forage dans la base --</option>
-                    {loadingForages ? (
-                      <option disabled>Chargement des forages en cours...</option>
-                    ) : foragesDisponibles.length === 0 ? (
-                      <option disabled>Aucun forage trouvé. Créez-en un d'abord !</option>
-                    ) : (
-                      foragesDisponibles.map(f => (
-                        <option key={f.id} value={f.id}>
-                          {f.forage_nom || f.nom || f.forage || "Forage inconnu"} (ID: {f.id.substring(0,8)}...)
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              </div>
+          <div className="mb-8 bg-slate-50 p-5 rounded-xl border border-slate-200">
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-1"><Folder size={16}/> Emplacement sur le serveur (Optionnel)</label>
+            <p className="text-xs text-slate-500 mb-3">Indiquez le chemin réseau pour sauvegarder une copie physique (ex: C:\Users\Projets).</p>
+            <input type="text" value={chemin} onChange={(e) => setChemin(e.target.value)} placeholder="Ex: C:\Users\Projets\ClientX" className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
 
-              {/* Choix du Format (UI Cards) */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Format d'exportation souhaité</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <label className={`border-2 rounded-xl p-5 flex flex-col items-center gap-3 cursor-pointer transition-all ${formData.format === 'pdf' ? 'border-red-500 bg-red-50 ring-2 ring-red-200 shadow-sm' : 'border-slate-200 hover:bg-slate-50'}`}>
-                    <input type="radio" name="format" value="pdf" checked={formData.format === 'pdf'} onChange={handleChange} className="hidden" />
-                    <FileType size={32} className={formData.format === 'pdf' ? 'text-red-600' : 'text-slate-400'} />
-                    <div className="text-center">
-                      <span className={`block font-bold ${formData.format === 'pdf' ? 'text-red-700' : 'text-slate-600'}`}>Fichier PDF</span>
-                      <span className="text-xs text-slate-500">Document final non modifiable</span>
-                    </div>
-                  </label>
-                  
-                  <label className={`border-2 rounded-xl p-5 flex flex-col items-center gap-3 cursor-pointer transition-all ${formData.format === 'docx' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200 shadow-sm' : 'border-slate-200 hover:bg-slate-50'}`}>
-                    <input type="radio" name="format" value="docx" checked={formData.format === 'docx'} onChange={handleChange} className="hidden" />
-                    <FileType size={32} className={formData.format === 'docx' ? 'text-blue-600' : 'text-slate-400'} />
-                    <div className="text-center">
-                      <span className={`block font-bold ${formData.format === 'docx' ? 'text-blue-700' : 'text-slate-600'}`}>Fichier Word</span>
-                      <span className="text-xs text-slate-500">Idéal pour éditions manuelles (.docx)</span>
-                    </div>
-                  </label>
-                </div>
-              </div>
+          {error && <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg font-medium border border-red-200">{error}</div>}
 
-              {/* Chemin Réseau */}
-              <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
-                <label className="block text-sm font-semibold text-slate-700 mb-1 flex items-center gap-2">
-                  <FolderGit2 size={18} /> Emplacement sur le serveur (Optionnel)
-                </label>
-                <p className="text-xs text-slate-500 mb-3">Indiquez le chemin réseau où le fichier final doit être conservé (ex: S:\Projets\ClientX).</p>
-                
-                <input
-                  type="text"
-                  name="chemin_pdf"
-                  value={formData.chemin_pdf}
-                  onChange={handleChange}
-                  placeholder="C:\Users\nom\Desktop\Livrables"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 outline-none font-mono text-sm bg-white"
-                  style={{ '--tw-ring-color': gingerVert }}
-                />
-              </div>
-
-              {/* Messages d'erreur */}
-              {error && (
-                <div className="bg-red-50 text-red-600 text-sm p-4 rounded-lg flex gap-3 items-start border border-red-100">
-                  <AlertCircle size={20} className="mt-0.5 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Bouton de Soumission */}
-              <button
-                type="submit"
-                disabled={loading || !formData.forage_id}
-                className="w-full text-white font-bold py-4 px-4 rounded-xl flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none"
-                style={{ backgroundColor: gingerVert }}
-              >
-                {loading ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
-                GÉNÉRER ET ENREGISTRER
-              </button>
-            </form>
-          )}
-        </div>
+          <button type="submit" disabled={loading} className="w-full text-white font-bold py-4 px-4 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg transition-all disabled:opacity-70" style={{ backgroundColor: gingerVert }}>
+            {loading ? <Loader2 className="animate-spin" /> : <Save />} GÉNÉRER LE FICHIER
+          </button>
+        </form>
       </div>
     </div>
   );

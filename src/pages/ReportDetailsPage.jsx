@@ -1,108 +1,120 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Clock, CheckCircle, Download, FileText, ChevronRight, FolderGit2 } from 'lucide-react';
+import { ArrowLeft, Download, Database, CheckCircle2, Clock, FileText, MapPin } from 'lucide-react';
 
 const gingerBleu = "#1D365A";
-const gingerVert = "#8DC63F";
 
 export default function ReportDetailsPage({ reportId, token, onNavigate }) {
   const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchReportDetails = async () => {
-      try {
-        const response = await fetch(`http://127.0.0.1:8047/rapports/${reportId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setReport(data);
-        }
-      } catch (error) {
-        console.error("Erreur lors du chargement du rapport", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    if (reportId) fetchReportDetails();
+    fetch(`http://127.0.0.1:8072/rapports/${reportId}`, { headers: { 'Authorization': `Bearer ${token}` }})
+      .then(r => r.json())
+      .then(setReport)
+      .catch(() => setError("Impossible de charger les détails du rapport."));
   }, [reportId, token]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-500"></div>
-      </div>
-    );
-  }
+  if (error) return <div className="p-8 text-red-600">{error}</div>;
+  if (!report) return <div className="p-8 text-slate-500">Chargement des données du rapport...</div>;
 
-  if (!report) {
-    return (
-      <div className="min-h-screen bg-slate-50 p-8 text-center">
-        <p>Rapport introuvable.</p>
-        <button onClick={() => onNavigate('DASHBOARD')} className="text-blue-600 mt-4 underline">Retour</button>
-      </div>
-    );
-  }
-
-  const isValide = report.date_validation != null;
+  // Calcul des données pour l'affichage propre
+  const numRapport = report.id.substring(0, 8).toUpperCase();
+  const typeFichier = report.chemin_pdf?.toLowerCase().endsWith('pdf') ? 'Fichier PDF' : 'Document Word';
+  const extension = report.chemin_pdf?.toLowerCase().endsWith('pdf') ? '.pdf' : '.docx';
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans">
-      <div className="max-w-5xl mx-auto">
-        <button onClick={() => onNavigate('DASHBOARD')} className="text-sm text-slate-500 hover:text-slate-800 mb-6 flex items-center gap-1">
-           &larr; Retour aux rapports
+      <div className="max-w-4xl mx-auto">
+        
+        {/* Navigation */}
+        <button onClick={() => onNavigate('DASHBOARD')} className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 font-medium mb-6 transition-colors">
+          <ArrowLeft size={16} /> Retour aux rapports
         </button>
 
-        {}
-        <header className="mb-8 border-b border-slate-200 pb-6 flex justify-between items-end">
+        {/* En-tête de la page */}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold" style={{ color: gingerBleu }}>Rapport : {report.forage}</h1>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${isValide ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                {isValide ? <CheckCircle size={14} /> : <Clock size={14} />}
-                {isValide ? 'Validé' : 'Généré'}
+            <h1 className="text-3xl font-extrabold flex items-center gap-4 mb-2" style={{ color: gingerBleu }}>
+              Rapport #{numRapport}
+              <span className={`text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1 tracking-wide ${report.date_validation ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                {report.date_validation ? <><CheckCircle2 size={14}/> Validé</> : <><Clock size={14}/> En attente</>}
               </span>
-            </div>
-            <p className="text-slate-500">Détail du rapport généré pour ce forage spécifique.</p>
+            </h1>
+            <p className="text-slate-500">Détail du rapport généré pour les forages spécifiés.</p>
           </div>
-          <button className="flex items-center gap-2 text-sm text-white px-5 py-2.5 rounded-lg font-bold shadow-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: gingerBleu }}>
+          
+          <button className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-6 py-3 rounded-xl font-bold shadow-md transition-all">
             <Download size={18} /> Télécharger le Fichier
           </button>
-        </header>
-
-        {}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-           <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold flex items-center gap-3" style={{ color: gingerBleu }}>
-                <Database size={24} style={{ color: gingerVert }} /> Informations d'exportation
-              </h2>
-           </div>
-           
-           <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 flex items-start gap-4">
-              <div className="p-3 bg-white border border-slate-200 rounded-lg text-slate-400">
-                 <FolderGit2 size={32} />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-slate-800">Emplacement réseau du fichier</h3>
-                {report.chemin_pdf ? (
-                  <p className="text-sm font-mono bg-white border border-slate-200 p-2 rounded mt-2 text-slate-600 break-all">
-                    {report.chemin_pdf}
-                  </p>
-                ) : (
-                  <p className="text-sm text-slate-500 mt-1 italic">Aucun chemin réseau spécifié lors de la création.</p>
-                )}
-              </div>
-           </div>
-
-           <div className="mt-8 border-t border-slate-100 pt-8">
-              <h3 className="text-lg font-semibold mb-4 text-slate-800">Identifiants Système</h3>
-              <ul className="text-sm text-slate-500 space-y-2 font-mono">
-                <li><strong>ID Rapport :</strong> {report.id}</li>
-                <li><strong>ID Forage lié :</strong> {report.forage_id}</li>
-              </ul>
-           </div>
         </div>
+
+        {/* Carte des informations */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          
+          {/* Section Forages */}
+          <div className="p-8 border-b border-slate-100">
+            <h3 className="text-lg font-bold flex items-center gap-2 mb-4" style={{ color: gingerBleu }}>
+              <MapPin size={20} className="text-blue-500" /> Forages analysés dans ce document
+            </h3>
+            {report.forages && report.forages.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {report.forages.map(f => (
+                  <span key={f.id} className="bg-blue-50 text-blue-700 border border-blue-200 font-bold px-4 py-2 rounded-lg">
+                    {f.forage || 'Forage sans nom'}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-500">Aucun forage n'a été rattaché à ce rapport (Ancienne donnée).</p>
+            )}
+          </div>
+
+          {/* Section Métadonnées */}
+          <div className="p-8 bg-slate-50/50">
+            <h3 className="text-lg font-bold flex items-center gap-2 mb-6" style={{ color: gingerBleu }}>
+              <Database size={20} className="text-green-500" /> Informations d'exportation
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
+              
+              {/* Ligne 1 */}
+              <div>
+                <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Type de document</span>
+                <div className="flex items-center gap-2 font-semibold text-slate-800">
+                  <FileText size={16} className="text-slate-400"/> {typeFichier} <span className="text-slate-400 font-normal">({extension})</span>
+                </div>
+              </div>
+              
+              <div>
+                <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Statut du rapport</span>
+                <span className="font-semibold text-slate-800">{report.date_validation ? 'Définitif (Validé)' : 'Brouillon / À relire'}</span>
+              </div>
+
+              {/* Ligne 2 */}
+              <div>
+                <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Validé par</span>
+                <span className="font-semibold text-slate-800">{report.date_validation ? 'Administrateur Système' : '-'}</span>
+              </div>
+
+              <div>
+                <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Date de validation</span>
+                <span className="font-semibold text-slate-800">
+                  {report.date_validation ? new Date(report.date_validation).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                </span>
+              </div>
+
+              {/* Ligne 3 (Pleine largeur) */}
+              <div className="md:col-span-2 mt-2">
+                <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Emplacement réseau du fichier</span>
+                <div className="bg-white border border-slate-200 rounded-lg p-3 font-mono text-sm text-slate-600 break-all select-all">
+                  {report.chemin_pdf || "Aucun chemin d'enregistrement spécifié."}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );

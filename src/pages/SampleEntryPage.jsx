@@ -144,7 +144,7 @@ export default function SampleEntryPage({ onNavigate, token }) {
     const payload = { forage_name: metaData.forage_name, echantillons: validRows };
 
     try {
-      const response = await fetch('http://172.20.10.6:8047/echantillons/', {
+      const response = await fetch('http://172.20.10.6:8072/echantillons/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
