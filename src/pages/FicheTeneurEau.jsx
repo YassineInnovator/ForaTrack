@@ -211,7 +211,7 @@ export default function FicheTeneurEau({ onNavigate, token }) {
     };
 
     try {
-      const response = await fetch('http://127.0.0.1:8072/teneur-eau/', {
+      const response = await fetch('http://127.0.0.1:8073/teneur-eau/', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

@@ -42,7 +42,7 @@ export default function CreateReportPage({ token, onNavigate }) {
 
     try {
       // Appel à la nouvelle route
-      const response = await fetch('http://127.0.0.1:8072/generer-rapport/', {
+      const response = await fetch('http://127.0.0.1:8073/generer-rapport/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
