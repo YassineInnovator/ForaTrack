@@ -9,7 +9,7 @@ import CreateReportPage from './pages/CreateReportPage';
 import ReportDetailsPage from './pages/ReportDetailsPage';
 import FieldWizardPage from './pages/FieldWizardPage';
 import SampleEntryPage from './pages/SampleEntryPage';
-import FicheTeneurEau from './pages/FicheTeneurEau'; // Ton nouvel import
+import FicheTeneurEau from './pages/FicheTeneurEau';
 
 const gingerBleu = "#1D365A";
 const gingerVert = "#8DC63F";
@@ -45,7 +45,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    // On ne recharge les rapports que si on est sur le Dashboard
     if (!token || currentView !== 'DASHBOARD') return;
     
     setLoading(true);
@@ -64,15 +63,12 @@ export default function App() {
   const DashboardView = () => (
     <div className="max-w-6xl mx-auto p-6 md:p-8 animate-in fade-in duration-300">
       
-      {/* SECTION : ACTIONS RAPIDES */}
       <h2 className="text-xl font-bold mb-6 flex items-center gap-2" style={{ color: gingerBleu }}>
         <LayoutDashboard size={24} className="text-blue-500" /> Actions Rapides
       </h2>
       
-      {/* NOUVEAUTÉ : On passe en grid-cols-4 sur grand écran pour faire de la place */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         
-        {/* Carte : Saisie Terrain */}
         <div onClick={() => handleNavigation('FIELD_WIZARD')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all group">
           <div className="w-14 h-14 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center mb-4 group-hover:bg-orange-600 group-hover:text-white transition-colors">
             <Map size={28} />
@@ -81,7 +77,6 @@ export default function App() {
           <p className="text-sm text-slate-500">Assistant pour les relevés de forages, génératrices et structures.</p>
         </div>
 
-        {/* Carte : Saisie Échantillons */}
         <div onClick={() => handleNavigation('SAMPLES')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all group">
           <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:bg-purple-600 group-hover:text-white transition-colors">
             <TestTube2 size={28} />
@@ -90,7 +85,6 @@ export default function App() {
           <p className="text-sm text-slate-500">Saisie déportée et inventaire des échantillons (Fiche FT06b).</p>
         </div>
 
-        {/* NOUVELLE CARTE : Teneur en Eau (FT32) */}
         <div onClick={() => handleNavigation('TENEUR_EAU')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all group">
           <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
             <Droplets size={28} />
@@ -99,7 +93,6 @@ export default function App() {
           <p className="text-sm text-slate-500">Calcul automatique des Hp(%) et gestion de la fiche FT32.</p>
         </div>
 
-        {/* Carte : Générer Rapport */}
         <div onClick={() => handleNavigation('CREATE_REPORT')} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all group flex flex-col">
           <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-colors relative" style={{ backgroundColor: '#f0fdf4', color: gingerVert }}>
             <FileSpreadsheet size={28} className="group-hover:text-white z-10" />
@@ -158,11 +151,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col">
-      
-      {/* NAVBAR FIXE */}
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm px-6 py-3 flex justify-between items-center">
         <GingerLogo onClick={() => handleNavigation('DASHBOARD')} />
-        
         <div className="flex items-center gap-4">
            {currentView !== 'DASHBOARD' && (
              <button onClick={() => handleNavigation('DASHBOARD')} className="hidden sm:flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
@@ -175,7 +165,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* CONTENU PRINCIPAL DYNAMIQUE */}
       <main className="flex-1">
         {(() => {
           switch (currentView) {
@@ -189,7 +178,6 @@ export default function App() {
           }
         })()}
       </main>
-
     </div>
   );
-}
+} 

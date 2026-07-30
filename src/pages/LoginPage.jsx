@@ -5,8 +5,6 @@ import { Loader2, AlertCircle, Key, User } from 'lucide-react';
 const gingerBleu = "#1D365A";
 const gingerVert = "#8DC63F";
 
-
-// Composant Logo intégré à la page (on pourra le séparer plus tard si besoin)
 const GingerLogo = () => (
   <div className="flex flex-col">
     <div className="flex items-center text-4xl font-extrabold tracking-tight">
@@ -32,25 +30,21 @@ export default function LoginPage({ onLoginSuccess }) {
     setError(null);
 
     try {
-      // Préparation des données au format attendu par le OAuth2 de FastAPI
       const formData = new URLSearchParams();
       formData.append('username', username);
       formData.append('password', password);
 
-      // Appel au backend (N'oublie pas de mettre 127.0.0.1 si localhost pose problème)
-      const response = await fetch('http://127.0.0.1:8072/login/', {
+      const response = await fetch('http://127.0.0.1:8047/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error("Identifiants incorrects");
+        throw new Error("Identifiants incorrects ou serveur injoignable.");
       }
 
       const data = await response.json();
-      
-      // On fait remonter le token reçu au chef d'orchestre (App.jsx)
       onLoginSuccess(data.access_token);
 
     } catch (err) {
