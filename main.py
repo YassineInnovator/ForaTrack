@@ -96,6 +96,14 @@ def enregistrer_fiche_teneur_eau(payload: schemas.SaisieTeneurEauPayload, db: Se
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.post("/calci-dolomimetrie/")
+def enregistrer_fiche_calci(payload: schemas.SaisieCalciPayload, db: Session = Depends(get_db), terrain_user: models.Utilisateur = Depends(get_terrain_utilisateur)):
+    try:
+        forage = crud.sauvegarder_calci_dolomimetrie(db=db, payload=payload, utilisateur_id=terrain_user.id)
+        return {"status": "success", "message": "Calci-dolomimétrie sauvegardée"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
 @app.get("/afficher/forages/", response_model=List[schemas.ForageResponse])
 def lister_tous_les_forages(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), user: models.Utilisateur = Depends(get_terrain_utilisateur)):
     return crud.get_forages(db=db, utilisateur=user, skip=skip, limit=limit)

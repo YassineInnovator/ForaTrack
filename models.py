@@ -138,6 +138,8 @@ class Forage(Base):
     diagraphies = relationship("Diagraphie", back_populates="forage_ref", cascade="all, delete-orphan")
     medias = relationship("Media", back_populates="forage_parent", cascade="all, delete-orphan")
     teneurs_eau = relationship("TeneurEau", back_populates="forage_parent", cascade="all, delete-orphan")
+    calcis = relationship("CalciDolomimetrie", back_populates="forage_parent", cascade="all, delete-orphan")
+
 
 class Generatrice(Base):
     __tablename__ = "generatrice"
@@ -211,6 +213,20 @@ class TeneurEau(Base):
     est_actif = Column(Boolean, default=True)
     forage_parent = relationship("Forage", back_populates="teneurs_eau")
 
+class CalciDolomimetrie(Base):
+    __tablename__ = "calci_dolomimetrie"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    forage = Column(String(100), ForeignKey("forage.forage", ondelete="CASCADE"), nullable=False)
+    cote = Column(Float, nullable=True)
+    min1 = Column(Float, nullable=True)
+    min3 = Column(Float, nullable=True)
+    min15 = Column(Float, nullable=True)
+    caco3 = Column(Float, nullable=True)
+    dolomie = Column(Float, nullable=True)
+    insolubles = Column(Float, nullable=True)
+    est_actif = Column(Boolean, default=True)
+    forage_parent = relationship("Forage", back_populates="calcis")
+    
 class Oxydation(Base):
     __tablename__ = "oxydation"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())

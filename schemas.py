@@ -213,3 +213,18 @@ class SaisieTeneurEauPayload(BaseModel):
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
     mesures: List[TeneurEauCreate] = []
+    
+class MesureCalciCreate(BaseModel):
+    cote: Optional[float] = None
+    min1: Optional[float] = None
+    min3: Optional[float] = None
+    min15: Optional[float] = None
+    caco3: Optional[float] = None
+    dolomie: Optional[float] = None
+    insolubles: Optional[float] = None
+
+class SaisieCalciPayload(BaseModel):
+    forage_name: str
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
+    mesures: List[MesureCalciCreate] = []

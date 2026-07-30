@@ -69,8 +69,8 @@ def update_forage(db: Session, forage_id: str, forage_update: schemas.ForageUpda
 
 def delete_forage(db: Session, forage_id: str, utilisateur_id: UUID) -> bool:
     db_forage = get_forage(db, forage_id)
-    if not db_forage or not db_forage.est_actif: return False
-    db_forage.est_actif = False 
+    if not db_forage or not db_forage.est_actif: return False # type: ignore
+    db_forage.est_actif = False  # type: ignore
     db.commit()
     enregistrer_action(db, utilisateur_id, f"Suppression logique du forage : {db_forage.forage}")
     return True
@@ -145,6 +145,34 @@ def sauvegarder_teneur_eau(db: Session, payload: schemas.SaisieTeneurEauPayload,
     db.commit()
     enregistrer_action(db, utilisateur_id, f"A enregistré {len(payload.mesures)} mesures de teneur en eau")
     return db_forage
+
+def sauvegarder_calci_dolomimetrie(db: Session, payload: schemas.SaisieCalciPayload, utilisateur_id: UUID):
+    db_forage = db.query(models.Forage).filter(models.Forage.forage == payload.forage_name).first()
+    if not db_forage:
+        db_forage = models.Forage(forage=payload.forage_name, cree_par=utilisateur_id)
+        db.add(db_forage)
+        db.flush()
+
+    def clean_float(val):
+        if val in (None, "", "-"): return None
+        try: return float(str(val).replace(',', '.'))
+        except ValueError: return None
+
+    for m in payload.mesures:
+        db.add(models.CalciDolomimetrie(
+            forage=db_forage.forage,
+            cote=clean_float(m.cote),
+            min1=clean_float(m.min1),
+            min3=clean_float(m.min3),
+            min15=clean_float(m.min15),
+            caco3=clean_float(m.caco3),
+            dolomie=clean_float(m.dolomie),
+            insolubles=clean_float(m.insolubles)
+        ))
+    db.commit()
+    enregistrer_action(db, utilisateur_id, f"A enregistré {len(payload.mesures)} mesures de calci-dolomimétrie")
+    return db_forage
+
 
 def get_rapports(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.RapportPDF).order_by(models.RapportPDF.date_creation.desc()).offset(skip).limit(limit).all()
