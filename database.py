@@ -8,6 +8,8 @@ load_dotenv()
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
+print(f"🔍 DB active : {SQLALCHEMY_DATABASE_URL}")
+
 if SQLALCHEMY_DATABASE_URL is None:
     raise ValueError("🚨 ERREUR CRITIQUE : La variable DATABASE_URL est introuvable dans le fichier .env !")
 
