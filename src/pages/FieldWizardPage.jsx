@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   MapPin, Compass, Layers, Hash, CheckCircle2, 
   ChevronRight, ChevronLeft, Save, AlertCircle, FileDigit, Clock, ArrowLeft, Plus,
-  History, Copy, X, ShieldAlert, AlertTriangle, PauseCircle, PlayCircle, Trash2
+  History, X, ShieldAlert, AlertTriangle, PauseCircle, PlayCircle, Trash2
 } from 'lucide-react';
 
 const gingerBleu = "#1D365A";
@@ -47,7 +47,6 @@ const InputCell = ({ row, field, width = 'w-16', onUpdate }) => (
   </td>
 );
 
-// Composant Barre de Progression
 const ProgressBar = ({ progress }) => {
   let color = 'bg-orange-500'; // Début
   if (progress > 50) color = 'bg-blue-500'; // En cours
@@ -69,12 +68,16 @@ export default function FieldWizardPage({ token, onNavigate }) {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  
+  // UI Errors and Deletion Modals (Remplace les alert() et confirm())
+  const [globalError, setGlobalError] = useState("");
+  const [draftToDelete, setDraftToDelete] = useState(null);
 
   // ID de la session active (pour savoir si on modifie un brouillon existant)
   const [activeDraftId, setActiveDraftId] = useState(generateId());
 
   // Les données de la fiche en cours
-  const [formData, setFormData] = useState({ nom_fichier: '', nom_forage: '', date_foration: '', date_debut_suivi: '', date_fin_suivi: '', orientation_bv: '', type_forage: 'horizontal', azimuth_bv: '', orientation_strati: '', calci: false, teneur_eau: false });
+  const [formData, setFormData] = useState({ nom_fichier: '', nom_forage: '', date_foration: '', date_debut_suivi: '', date_fin_suivi: '', orientation_bv: '', type_forage: 'Horizontal', azimuth_bv: '', orientation_strati: '', calci: false, teneur_eau: false });
   const [generatriceRows, setGeneratriceRows] = useState(() => Array(5).fill(null).map(() => createEmptyGeneratriceRow()));
   const [tableRows, setTableRows] = useState(() => Array(5).fill(null).map(() => createEmptyRow()));
 
@@ -88,7 +91,6 @@ export default function FieldWizardPage({ token, onNavigate }) {
     }
   });
 
-  // Synchronisation automatique : à chaque fois que la liste change, on la grave dans le navigateur
   useEffect(() => {
     localStorage.setItem('ginger_brouillons', JSON.stringify(brouillons));
   }, [brouillons]);
@@ -98,19 +100,16 @@ export default function FieldWizardPage({ token, onNavigate }) {
     let totalScore = 0;
     let filledScore = 0;
 
-    // 1. En-tête (4 points)
     totalScore += 4;
     if (header.nom_forage) filledScore += 1;
     if (header.date_foration) filledScore += 1;
     if (header.orientation_bv) filledScore += 1;
     if (header.azimuth_bv) filledScore += 1;
 
-    // 2. Génératrices (3 points si au moins 1 ligne bien remplie)
     totalScore += 3;
     const hasValidGen = gen.some(r => r.num_carotte !== '' && r.num_generatrice !== '' && r.cote_toit !== '');
     if (hasValidGen) filledScore += 3;
 
-    // 3. Structures (3 points si au moins 1 ligne renseignée)
     totalScore += 3;
     const hasValidStruct = struct.some(r => r.cote !== '');
     if (hasValidStruct) filledScore += 3;
@@ -118,11 +117,9 @@ export default function FieldWizardPage({ token, onNavigate }) {
     return Math.round((filledScore / totalScore) * 100);
   };
 
-  // --- SAUVEGARDER EN BROUILLON ET CRÉER UNE NOUVELLE FICHE ---
   const saveDraftAndCreateNew = () => {
     const progress = calculateProgress(formData, generatriceRows, tableRows);
     
-    // On ne sauvegarde un brouillon que s'il y a au moins un truc d'écrit
     if (progress > 0 || formData.nom_forage !== '') {
       setBrouillons(prev => {
         const existingIndex = prev.findIndex(b => b.id === activeDraftId);
@@ -141,16 +138,14 @@ export default function FieldWizardPage({ token, onNavigate }) {
     }
 
     // On remet la fiche à zéro
-    setFormData({ nom_fichier: '', nom_forage: '', date_foration: '', date_debut_suivi: '', date_fin_suivi: '', orientation_bv: '', type_forage: 'horizontal', azimuth_bv: '', orientation_strati: '', calci: false, teneur_eau: false });
+    setFormData({ nom_fichier: '', nom_forage: '', date_foration: '', date_debut_suivi: '', date_fin_suivi: '', orientation_bv: '', type_forage: 'Horizontal', azimuth_bv: '', orientation_strati: '', calci: false, teneur_eau: false });
     setGeneratriceRows(Array(5).fill(null).map(() => createEmptyGeneratriceRow()));
     setTableRows(Array(5).fill(null).map(() => createEmptyRow()));
     setActiveDraftId(generateId());
     setCurrentStep(1);
   };
 
-  // --- REPRENDRE UN BROUILLON ---
   const resumeDraft = (draftToResume) => {
-    // 1. Auto-save la fiche actuelle si elle est commencée
     const currentProgress = calculateProgress(formData, generatriceRows, tableRows);
     if ((currentProgress > 0 || formData.nom_forage !== '') && activeDraftId !== draftToResume.id) {
       setBrouillons(prev => {
@@ -165,25 +160,25 @@ export default function FieldWizardPage({ token, onNavigate }) {
       });
     }
 
-    // 2. Charger le brouillon sélectionné
     setFormData(draftToResume.formData);
     setGeneratriceRows(draftToResume.generatriceRows);
     setTableRows(draftToResume.tableRows);
     setActiveDraftId(draftToResume.id);
     setCurrentStep(1);
-    setIsHistoryOpen(false); // Fermer le panneau sur tablette
+    setIsHistoryOpen(false); 
+    setGlobalError("");
   };
 
-  // --- SUPPRIMER UN BROUILLON ---
-  const deleteDraft = (e, draftId) => {
-    e.stopPropagation(); // Empêche de déclencher le "Reprendre" en cliquant sur la poubelle
-    if(window.confirm("Voulez-vous supprimer ce brouillon définitivement ?")) {
-      setBrouillons(prev => prev.filter(b => b.id !== draftId));
-    }
+  const requestDraftDeletion = (e, draftId) => {
+    e.stopPropagation(); 
+    setDraftToDelete(draftId);
   };
 
+  const confirmDeleteDraft = () => {
+    setBrouillons(prev => prev.filter(b => b.id !== draftToDelete));
+    setDraftToDelete(null);
+  };
 
-  // Effets et Handlers classiques
   useEffect(() => {
     if (currentStep === 3) {
       const timer = setTimeout(() => setIsSafeToSubmit(true), 500);
@@ -217,41 +212,96 @@ export default function FieldWizardPage({ token, onNavigate }) {
     setGeneratriceRows(generatriceRows.map(row => row.id === id ? { ...row, [field]: value } : row));
   };
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 3));
+  const nextStep = () => {
+      setCurrentStep(prev => Math.min(prev + 1, 3));
+      setGlobalError("");
+  }
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (currentStep < 3 || !isSafeToSubmit) return;
     setShowSaveConfirm(true); 
+    setGlobalError("");
   };
 
   const confirmAndSave = async () => {
     setShowSaveConfirm(false);
     setLoading(true);
+    setGlobalError("");
     
     try {
+      // --- NETTOYAGE DES DONNÉES (Pour éviter l'erreur 422 FastAPI) ---
+      // Transforme les textes vides en "null" et les virgules en points pour la BDD
+      const cleanFloat = (val) => {
+        if (val === "" || val === null || val === undefined) return null;
+        const parsed = parseFloat(String(val).replace(',', '.'));
+        return isNaN(parsed) ? null : parsed;
+      };
+      
+      const cleanDate = (val) => (val === "" ? null : val);
+
+      // On reconstruit un payload parfaitement propre
       const payload = {
-        en_tete: formData,
-        generatrices: generatriceRows.filter(row => row.num_carotte !== '' || row.num_generatrice !== ''),
-        structures: tableRows.filter(row => row.cote !== '')
+        en_tete: {
+          ...formData,
+          date_foration: cleanDate(formData.date_foration),
+          date_debut_suivi: cleanDate(formData.date_debut_suivi),
+          date_fin_suivi: cleanDate(formData.date_fin_suivi),
+          azimuth_bv: cleanFloat(formData.azimuth_bv)
+        },
+        generatrices: generatriceRows
+          .filter(row => row.num_carotte !== '' || row.num_generatrice !== '')
+          .map(row => ({
+            num_carotte: row.num_carotte || null,
+            num_generatrice: row.num_generatrice || null,
+            orientation_strati: row.orientation_strati || null,
+            cote_toit: cleanFloat(row.cote_toit),
+            cote_mur: cleanFloat(row.cote_mur),
+            date_heure_suivi: cleanDate(row.date_heure_suivi)
+          })),
+        structures: tableRows
+          .filter(row => row.cote !== '')
+          .map(row => ({
+            cote: cleanFloat(row.cote),
+            gen_num: row.gen_num || null,
+            gen_orientee: row.gen_orientee || null,
+            plumoses_fines: row.plumoses_fines,
+            plumoses_gross: row.plumoses_gross,
+            stries_fines: row.stries_fines,
+            stries: row.stries,
+            strie_patine: row.strie_patine,
+            mixte: row.mixte,
+            indeterminee: row.indeterminee,
+            remarques: row.remarques || null,
+            gypse: row.gypse,
+            bioturbations: row.bioturbations,
+            patine: row.patine,
+            mb_dir: cleanFloat(row.mb_dir),
+            mb_pen: cleanFloat(row.mb_pen),
+            mb_pitch: cleanFloat(row.mb_pitch),
+            mb_jeu: row.mb_jeu || null
+          }))
       };
 
-      const response = await fetch('http://172.20.10.6:8047/releve-terrain/', {
+      const response = await fetch('http://127.0.0.1:8072/releve-terrain/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error("Erreur serveur");
+      if (!response.ok) {
+         const errorData = await response.json();
+         console.error("❌ FastAPI a rejeté le format. Détails :", errorData);
+         throw new Error("Erreur serveur API");
+      }
 
-      // Si le serveur a bien reçu, on supprime ce brouillon de la liste
       setBrouillons(prev => prev.filter(b => b.id !== activeDraftId));
       setSuccess(true);
       
     } catch (error) {
       console.error(error);
-      alert("Erreur de connexion au serveur Python. L'API est-elle lancée ? Vos données sont conservées à l'écran en sécurité.");
+      setGlobalError("Erreur de connexion au serveur Python. L'API est-elle lancée ? Vos données sont conservées en sécurité.");
     } finally {
       setLoading(false);
     }
@@ -262,13 +312,13 @@ export default function FieldWizardPage({ token, onNavigate }) {
     if (progress > 0 || formData.nom_forage !== '') {
       setShowExitConfirm(true);
     } else {
-      onNavigate('DASHBOARD');
+      if (onNavigate) onNavigate('DASHBOARD');
     }
   };
 
   const forceExit = () => {
-    saveDraftAndCreateNew(); // On auto-save en quittant pour ne rien perdre !
-    onNavigate('DASHBOARD');
+    saveDraftAndCreateNew(); 
+    if (onNavigate) onNavigate('DASHBOARD');
   };
 
   const OptionCard = ({ name, value, label, currentVal }) => (
@@ -308,11 +358,11 @@ export default function FieldWizardPage({ token, onNavigate }) {
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-slate-700">Type de Forage</label>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <OptionCard name="type_forage" value="horizontal" label="Horizontal" currentVal={formData.type_forage} />
-          <OptionCard name="type_forage" value="oblique_m" label="Oblique M." currentVal={formData.type_forage} />
-          <OptionCard name="type_forage" value="oblique_d" label="Oblique D." currentVal={formData.type_forage} />
-          <OptionCard name="type_forage" value="vertical_m" label="Vertical M." currentVal={formData.type_forage} />
-          <OptionCard name="type_forage" value="vertical_d" label="Vertical D." currentVal={formData.type_forage} />
+          <OptionCard name="type_forage" value="Horizontal" label="Horizontal" currentVal={formData.type_forage} />
+          <OptionCard name="type_forage" value="Oblique_M" label="Oblique M." currentVal={formData.type_forage} />
+          <OptionCard name="type_forage" value="Oblique_D" label="Oblique D." currentVal={formData.type_forage} />
+          <OptionCard name="type_forage" value="Vertical_M" label="Vertical M." currentVal={formData.type_forage} />
+          <OptionCard name="type_forage" value="Vertical_D" label="Vertical D." currentVal={formData.type_forage} />
         </div>
       </div>
 
@@ -498,11 +548,11 @@ export default function FieldWizardPage({ token, onNavigate }) {
           <div className="space-y-3">
             <button onClick={() => { 
                 setSuccess(false); 
-                saveDraftAndCreateNew(); // Remet tout à zéro proprement
+                saveDraftAndCreateNew(); 
               }} 
               className="w-full font-bold py-3 px-4 rounded-xl text-white transition-all hover:shadow-lg" style={{ backgroundColor: gingerBleu }}>Saisir un autre relevé
             </button>
-            <button onClick={() => onNavigate('DASHBOARD')} className="w-full font-bold py-3 px-4 rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all">Retour au tableau de bord</button>
+            <button onClick={() => { if (onNavigate) onNavigate('DASHBOARD'); }} className="w-full font-bold py-3 px-4 rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all">Retour au tableau de bord</button>
           </div>
         </div>
       </div>
@@ -519,11 +569,9 @@ export default function FieldWizardPage({ token, onNavigate }) {
           </button>
           
           <div className="flex items-center gap-3">
-            {/* BOUTON NOUVELLE FICHE / BROUILLON */}
             <button onClick={saveDraftAndCreateNew} className="flex items-center gap-2 bg-white text-blue-700 border border-blue-200 hover:bg-blue-50 px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-colors">
               <Plus size={16} /> Nouvelle Fiche
             </button>
-            {/* BOUTON TIROIR SUR TABLETTE */}
             <button type="button" onClick={() => setIsHistoryOpen(true)} className="lg:hidden flex items-center gap-2 text-sm text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-sm" style={{ backgroundColor: gingerBleu }}>
               <History size={16} />
               <span className="hidden sm:inline">Mes Brouillons</span>
@@ -538,12 +586,20 @@ export default function FieldWizardPage({ token, onNavigate }) {
           </p>
         </div>
 
+        {globalError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-in fade-in">
+                <AlertCircle className="text-red-500 mt-0.5 shrink-0" size={20} />
+                <div>
+                    <h3 className="text-red-800 font-bold">Erreur de Sauvegarde</h3>
+                    <p className="text-red-700 text-sm mt-1">{globalError}</p>
+                </div>
+            </div>
+        )}
+
         <div className="flex flex-col lg:flex-row gap-6 items-start relative">
           
-          {/* ZONE PRINCIPALE : LE WIZARD */}
           <div className="flex-1 w-full min-w-0 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             
-            {/* Barre de navigation des étapes cliquables */}
             <div className="flex flex-col sm:flex-row border-b border-slate-100">
               {['En-tête Forage', 'Tableau Génératrices', 'Tableau des Structures'].map((label, index) => {
                 const stepNum = index + 1;
@@ -571,7 +627,6 @@ export default function FieldWizardPage({ token, onNavigate }) {
                     <button type="button" onClick={prevStep} disabled={currentStep === 1} className={`flex-1 sm:flex-none flex justify-center items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-600 bg-slate-100 hover:bg-slate-200'}`}>
                       <ChevronLeft size={20} /> Précédent
                     </button>
-                    {/* BOUTON METTRE EN PAUSE */}
                     <button type="button" onClick={saveDraftAndCreateNew} className="flex-1 sm:flex-none flex justify-center items-center gap-2 px-6 py-3 rounded-xl font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-all border border-blue-200">
                       <PauseCircle size={20} /> Pause
                     </button>
@@ -592,12 +647,10 @@ export default function FieldWizardPage({ token, onNavigate }) {
             </div>
           </div>
           
-          {/* Overlay sombre pour tablette */}
           {isHistoryOpen && (
             <div className="fixed inset-0 bg-slate-900/40 z-40 lg:hidden backdrop-blur-sm transition-opacity" onClick={() => setIsHistoryOpen(false)} />
           )}
 
-          {/* ZONE LATÉRALE : BROUILLONS ET HISTORIQUE */}
           <div className={`
             fixed inset-y-0 right-0 z-40 w-full sm:w-96 bg-white shadow-2xl transform transition-transform duration-300 flex flex-col
             lg:relative lg:translate-x-0 lg:w-80 lg:shadow-sm lg:rounded-2xl lg:border lg:border-slate-200 lg:z-10 lg:sticky lg:top-8
@@ -621,14 +674,13 @@ export default function FieldWizardPage({ token, onNavigate }) {
                 </div>
               ) : brouillons.map((draft) => (
                 <div key={draft.id} className="p-4 border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all bg-white relative overflow-hidden group">
-                  {/* Petit indicateur de status coloré sur le bord gauche */}
                   <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${draft.progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
                   
                   <div className="flex justify-between items-start mb-2 pl-2">
                     <span className="font-bold text-slate-800 text-sm">{draft.formData.nom_forage || 'Forage sans nom'}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-slate-400 flex items-center gap-1"><Clock size={10}/> {draft.timestamp}</span>
-                      <button type="button" onClick={(e) => deleteDraft(e, draft.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition-colors" title="Supprimer ce brouillon">
+                      <button type="button" onClick={(e) => requestDraftDeletion(e, draft.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition-colors" title="Supprimer ce brouillon">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -657,7 +709,6 @@ export default function FieldWizardPage({ token, onNavigate }) {
         </div>
       </div>
 
-      {/* MODAL : CONFIRMER L'ENVOI */}
       {showSaveConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
@@ -672,7 +723,6 @@ export default function FieldWizardPage({ token, onNavigate }) {
         </div>
       )}
 
-      {/* MODAL : QUITTER (BOUCLIER ANTI-FUITE) */}
       {showExitConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border-t-4 border-orange-500 animate-in zoom-in-95 duration-200">
@@ -682,6 +732,20 @@ export default function FieldWizardPage({ token, onNavigate }) {
             <div className="flex flex-col sm:flex-row-reverse gap-3">
               <button onClick={forceExit} className="flex-1 px-4 py-3 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-md transition-colors">Quitter</button>
               <button onClick={() => setShowExitConfirm(false)} className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Rester ici</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {draftToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><Trash2 size={32} /></div>
+            <h3 className="text-xl font-bold text-center text-slate-800 mb-2">Supprimer le brouillon ?</h3>
+            <p className="text-center text-slate-500 mb-8">Cette action est définitive. Les données de ce brouillon seront perdues.</p>
+            <div className="flex flex-col sm:flex-row-reverse gap-3">
+              <button onClick={confirmDeleteDraft} className="flex-1 px-4 py-3 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 shadow-md transition-colors">Supprimer</button>
+              <button onClick={() => setDraftToDelete(null)} className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Annuler</button>
             </div>
           </div>
         </div>
